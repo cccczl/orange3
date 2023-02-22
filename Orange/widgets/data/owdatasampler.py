@@ -128,8 +128,10 @@ class OWDataSampler(OWWidget):
         self.selected_fold_spin = gui.spin(
             ibox, self, "selectedFold", 1, self.number_of_folds,
             addToLayout=False, callback=self.fold_changed)
-        form.addRow("Unused subset:" if not self.compatibility_mode
-                    else "Selected subset:", self.selected_fold_spin)
+        form.addRow(
+            "Selected subset:" if self.compatibility_mode else "Unused subset:",
+            self.selected_fold_spin,
+        )
 
         gui.appendRadioButton(sampling, "Bootstrap")
 
@@ -226,8 +228,8 @@ class OWDataSampler(OWWidget):
         else:
             if self.indices is None or not self.use_seed:
                 self.updateindices()
-                if self.indices is None:
-                    return
+            if self.indices is None:
+                return
             if self.sampling_type in (
                     self.FixedProportion, self.FixedSize, self.Bootstrap):
                 remaining, sample = self.indices
@@ -400,10 +402,7 @@ class SampleRandomN(Reprable):
             shuffled = np.arange(len(table))
             rgen.shuffle(shuffled)
             empty = np.array([], dtype=int)
-            if self.n == 0:
-                return shuffled, empty
-            else:
-                return empty, shuffled
+            return (shuffled, empty) if self.n == 0 else (empty, shuffled)
         elif self.stratified and table.domain.has_discrete_class:
             test_size = max(len(table.domain.class_var.values), self.n)
             splitter = skl.StratifiedShuffleSplit(

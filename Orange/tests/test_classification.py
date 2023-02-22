@@ -88,9 +88,7 @@ class ModelTest(unittest.TestCase):
         table = Table("titanic")
         learn = NaiveBayesLearner()
         clf = learn(table)
-        pred = []
-        for row in table:
-            pred.append(clf(row))
+        pred = [clf(row) for row in table]
 
     def test_prediction_dimensions(self):
         class MockModel(Model):
@@ -149,9 +147,13 @@ class ModelTest(unittest.TestCase):
         y = np.random.randint(1, 6, (nrows, 2))
         y[:, 0] = y[:, 0] // 3          # majority = 1
         y[:, 1] = (y[:, 1] + 4) // 3    # majority = 2
-        domain = Domain([ContinuousVariable('i' + str(i)) for i in range(ncols)],
-                        [DiscreteVariable('c' + str(i), values="0123")
-                         for i in range(y.shape[1])])
+        domain = Domain(
+            [ContinuousVariable(f'i{str(i)}') for i in range(ncols)],
+            [
+                DiscreteVariable(f'c{str(i)}', values="0123")
+                for i in range(y.shape[1])
+            ],
+        )
         t = Table(domain, x, y)
         learn = DummyMulticlassLearner()
         clf = learn(t)
@@ -169,11 +171,15 @@ class ModelTest(unittest.TestCase):
 
         # single class variable
         y = np.random.randint(0, 2, (nrows, 1))
-        d = Domain([DiscreteVariable('v' + str(i),
-                                     values=[str(v)
-                                             for v in np.unique(x[:, i])])
-                    for i in range(ncols)],
-                   DiscreteVariable('c', values="12"))
+        d = Domain(
+            [
+                DiscreteVariable(
+                    f'v{str(i)}', values=[str(v) for v in np.unique(x[:, i])]
+                )
+                for i in range(ncols)
+            ],
+            DiscreteVariable('c', values="12"),
+        )
         t = Table(d, x, y)
         learn = DummyLearner()
         clf = learn(t)
@@ -188,9 +194,13 @@ class ModelTest(unittest.TestCase):
         y = np.random.randint(1, 6, (nrows, 2))
         y[:, 0] = y[:, 0] // 3             # majority = 1
         y[:, 1] = (y[:, 1] + 4) // 3 - 1   # majority = 1
-        domain = Domain([ContinuousVariable('i' + str(i)) for i in range(ncols)],
-                        [DiscreteVariable('c' + str(i), values="0123")
-                         for i in range(y.shape[1])])
+        domain = Domain(
+            [ContinuousVariable(f'i{str(i)}') for i in range(ncols)],
+            [
+                DiscreteVariable(f'c{str(i)}', values="0123")
+                for i in range(y.shape[1])
+            ],
+        )
         t = Table(domain, x, y)
         learn = DummyMulticlassLearner()
         clf = learn(t)
@@ -220,23 +230,23 @@ class ModelTest(unittest.TestCase):
 
             with self.subTest(learner.__name__):
                 # model trained on only one value (but three in the domain)
-                model = learner()(iris[0:100])
+                model = learner()(iris[:100])
 
-                res = model(iris[0:50])
+                res = model(iris[:50])
                 self.assertTupleEqual((50,), res.shape)
 
                 # probabilities must still be for three classes
-                res = model(iris[0:50], model.Probs)
+                res = model(iris[:50], model.Probs)
                 self.assertTupleEqual((50, 3), res.shape)
 
                 # model trained on all classes and predicting with one class
                 try:
-                    model = learner()(iris[0:100])
+                    model = learner()(iris[:100])
                 except TypeError:
                     # calibration, threshold learners are skipped
                     # they have some specifics regarding data
                     continue
-                res = model(iris[0:50], model.Probs)
+                res = model(iris[:50], model.Probs)
                 self.assertTupleEqual((50, 3), res.shape)
 
     def test_result_shape_numpy(self):
@@ -260,10 +270,10 @@ class ModelTest(unittest.TestCase):
                 model = learner(*args)(data)
                 transformed_iris = model.data_to_model_domain(data)
 
-                res = model(transformed_iris.X[0:5])
+                res = model(transformed_iris.X[:5])
                 self.assertTupleEqual((5,), res.shape)
 
-                res = model(transformed_iris.X[0:1], model.Probs)
+                res = model(transformed_iris.X[:1], model.Probs)
                 self.assertTupleEqual(
                     (1, len(data.domain.class_var.values)), res.shape
                 )
@@ -282,7 +292,7 @@ class ModelTest(unittest.TestCase):
                 probs = model.predict_proba(data)
                 shape = (len(data), len(data.domain.class_var.values))
                 self.assertEqual(probs.shape, shape)
-                self.assertTrue(np.all(np.sum(probs, axis=1) - 1 < 0.0001))
+                self.assertTrue(np.all(np.sum(probs, axis=1) < 1.0001))
 
 
 class ExpandProbabilitiesTest(unittest.TestCase):
@@ -431,9 +441,10 @@ class LearnerAccessibility(unittest.TestCase):
                         Table.from_table(model.domain, ds).X,
                         Table.from_table(model2.domain, ds).X)
                     np.testing.assert_almost_equal(
-                        model(ds), model2(ds),
-                        err_msg='%s does not return same values when unpickled %s'
-                        % (learner.__class__.__name__, ds.name))
+                        model(ds),
+                        model2(ds),
+                        err_msg=f'{learner.__class__.__name__} does not return same values when unpickled {ds.name}',
+                    )
 
     def test_all_models_work_after_unpickling_pca(self):
         datasets = [Table('iris'), Table('titanic')]
@@ -456,9 +467,10 @@ class LearnerAccessibility(unittest.TestCase):
                         Table.from_table(model.domain, ds).X,
                         Table.from_table(model2.domain, ds).X)
                     np.testing.assert_almost_equal(
-                        model(ds), model2(ds),
-                        err_msg='%s does not return same values when unpickled %s'
-                                % (learner.__class__.__name__, ds.name))
+                        model(ds),
+                        model2(ds),
+                        err_msg=f'{learner.__class__.__name__} does not return same values when unpickled {ds.name}',
+                    )
 
     def test_adequacy_all_learners(self):
         for learner in all_learners():

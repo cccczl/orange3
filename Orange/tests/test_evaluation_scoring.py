@@ -78,11 +78,7 @@ class TestPrecision(unittest.TestCase):
         self.assertEqual(res[0], 1.)
         self.assertAlmostEqual(res[1], 0.78333, 5)
 
-        for target, prob in ((0, 2 / 3),
-                             (1, 1 / 4),
-                             (2, 1 / 1),
-                             (3, 1 / 1),
-                             (4, 1 / 1)):
+        for target, prob in ((0, 2 / 3), (1, 1 / 4), (2, 1), (3, 1), (4, 1)):
             res = self.score(results, target=target, average=None)
             self.assertEqual(res[0], 1.)
             self.assertEqual(res[1], prob)
@@ -133,11 +129,7 @@ class TestRecall(unittest.TestCase):
         self.assertEqual(res[0], 1.)
         self.assertAlmostEqual(res[1], 0.6)
 
-        for target, prob in ((0, 2 / 2),
-                             (1, 1 / 2),
-                             (2, 1 / 3),
-                             (3, 1 / 1),
-                             (4, 1 / 2)):
+        for target, prob in ((0, 1), (1, 1 / 2), (2, 1 / 3), (3, 1), (4, 1 / 2)):
             res = self.score(results, target=target)
             self.assertEqual(res[0], 1.)
             self.assertEqual(res[1], prob)

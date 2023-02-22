@@ -188,10 +188,7 @@ class OWConcatenate(widget.OWWidget):
             types_.add(type(self.primary_data))
         for table in self.more_data:
             types_.add(type(table))
-        if len(types_) > 1:
-            return True
-
-        return False
+        return len(types_) > 1
 
     @gui.deferred
     def commit(self):
@@ -201,10 +198,7 @@ class OWConcatenate(widget.OWWidget):
             tables = [self.primary_data] + list(self.more_data)
             domain = self.primary_data.domain
         elif self.more_data:
-            if self.ignore_compute_value:
-                tables = self._dumb_tables()
-            else:
-                tables = self.more_data
+            tables = self._dumb_tables() if self.ignore_compute_value else self.more_data
             domains = [table.domain for table in tables]
             domain = self.merge_domains(domains)
 
@@ -212,8 +206,7 @@ class OWConcatenate(widget.OWWidget):
             assert domain is not None
             names = [getattr(t, 'name', '') for t in tables]
             if len(names) != len(set(names)):
-                names = ['{} ({})'.format(name, i)
-                         for i, name in enumerate(names)]
+                names = [f'{name} ({i})' for i, name in enumerate(names)]
             source_var = Orange.data.DiscreteVariable(
                 get_unique_names(domain, self.source_attr_name),
                 values=names
@@ -223,8 +216,7 @@ class OWConcatenate(widget.OWWidget):
                 domain,
                 **{places[self.source_column_role]: (source_var,)})
 
-        tables = [table.transform(domain) for table in tables]
-        if tables:
+        if tables := [table.transform(domain) for table in tables]:
             data = type(tables[0]).concatenate(tables)
             if source_var:
                 source_ids = np.array(list(flatten(
@@ -285,9 +277,9 @@ class OWConcatenate(widget.OWWidget):
         else:
             items["Domain"] = self.tr(self.domain_opts[self.merge_type]).lower()
         if self.append_source_column:
-            items["Source data ID"] = "{} (as {})".format(
-                self.source_attr_name,
-                self.id_roles[self.source_column_role].lower())
+            items[
+                "Source data ID"
+            ] = f"{self.source_attr_name} (as {self.id_roles[self.source_column_role].lower()})"
         self.report_items(items)
 
     def merge_domains(self, domains):
@@ -333,11 +325,9 @@ class OWConcatenate(widget.OWWidget):
                 continue
             if desc.template.is_discrete:
                 sattr_values = set(desc.values)
-                # don't use sets: keep the order
-                missing_values = tuple(
+                if missing_values := tuple(
                     val for val in el.values if val not in sattr_values
-                )
-                if missing_values:
+                ):
                     attrs[el] = attrs[el]._replace(
                         original=False,
                         values=desc.values + missing_values)

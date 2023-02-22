@@ -62,9 +62,11 @@ class Backend(metaclass=Registry):
         with self.execute_sql_query(query) as cur:
             tables = []
             for schema, name in cur.fetchall():
-                sql = "{}.{}".format(
-                    self.quote_identifier(schema),
-                    self.quote_identifier(name)) if schema else self.quote_identifier(name)
+                sql = (
+                    f"{self.quote_identifier(schema)}.{self.quote_identifier(name)}"
+                    if schema
+                    else self.quote_identifier(name)
+                )
                 tables.append(TableDesc(name, schema, sql))
             return tables
 
@@ -114,10 +116,7 @@ class Backend(metaclass=Registry):
         query = self.distinct_values_query(field_name, table_name)
         with self.execute_sql_query(query) as cur:
             values = cur.fetchall()
-        if len(values) > 20:
-            return ()
-        else:
-            return tuple(str(x[0]) for x in values)
+        return () if len(values) > 20 else tuple(str(x[0]) for x in values)
 
     def create_variable(self, field_name, field_metadata,
                         type_hints, inspect_table=None):

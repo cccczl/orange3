@@ -203,7 +203,6 @@ def pull_notifications():
     # get set of already displayed notification IDs, stored in settings["notifications/displayed"]
     displayedIDs = literal_eval(settings.value("notifications/displayed", "set()", str))
 
-    # get notification feed from Github
     class GetNotifFeed(QThread):
         resultReady = pyqtSignal(str)
 
@@ -259,7 +258,7 @@ def pull_notifications():
 
         # if no custom icon is set, default to notif type icon
         if YAMLnotif.icon is None and YAMLnotif.type is not None:
-            YAMLnotif.icon = "canvas/icons/" + YAMLnotif.type + ".png"
+            YAMLnotif.icon = f"canvas/icons/{YAMLnotif.type}.png"
 
         # instantiate and return Notification
         notif = YAMLnotif.toNotification()
@@ -275,6 +274,7 @@ def pull_notifications():
 
             displayedIDs.add(YAMLnotif.id)
             settings.setValue("notifications/displayed", repr(displayedIDs))
+
         notif.clicked.connect(remember_notification)
 
         # display notification

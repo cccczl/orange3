@@ -347,15 +347,14 @@ class ServerEmbedderCommunicator:
         -------
         Embedding. For items that are not successfully embedded returns None.
         """
-        if response.content:
-            try:
-                cont = json.loads(response.content.decode("utf-8"))
-                return cont.get("embedding", None)
-            except JSONDecodeError:
-                # in case that embedding was not successful response is not
-                # valid JSON
-                return None
-        else:
+        if not response.content:
+            return None
+        try:
+            cont = json.loads(response.content.decode("utf-8"))
+            return cont.get("embedding", None)
+        except JSONDecodeError:
+            # in case that embedding was not successful response is not
+            # valid JSON
             return None
 
     def clear_cache(self):

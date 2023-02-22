@@ -93,12 +93,14 @@ class MappedDiscreteNode(Node):
             child.condition = conditions[attr] & in_brnch
         else:
             child.condition = in_brnch
-        vals = [attr.values[j] for j in sorted(child.condition)]
-        if not vals:
-            child.description = "(unreachable)"
+        if vals := [attr.values[j] for j in sorted(child.condition)]:
+            child.description = (
+                vals[0]
+                if len(vals) == 1
+                else f'{", ".join(vals[:-1])} or {vals[-1]}'
+            )
         else:
-            child.description = vals[0] if len(vals) == 1 else \
-                "{} or {}".format(", ".join(vals[:-1]), vals[-1])
+            child.description = "(unreachable)"
 
 
 class NumericNode(Node):
@@ -125,8 +127,7 @@ class NumericNode(Node):
         elif child_idx == 1 and (lower is None or threshold > lower):
             lower = threshold
         child.condition = (lower, upper)
-        child.description = \
-            "{} {}".format("≤>"[child_idx], attr.str_val(threshold))
+        child.description = f'{"≤>"[child_idx]} {attr.str_val(threshold)}'
 
 
 class TreeModel(TreeModelInterface):
@@ -205,13 +206,12 @@ class TreeModel(TreeModelInterface):
         predictions = self.get_values(X)
         if self.domain.class_var.is_continuous:
             return predictions[:, 0]
-        else:
-            sums = np.sum(predictions, axis=1)
-            # This can't happen because nodes with 0 instances are prohibited
-            # zeros = (sums == 0)
-            # predictions[zeros] = 1
-            # sums[zeros] = predictions.shape[1]
-            return predictions / sums[:, np.newaxis]
+        sums = np.sum(predictions, axis=1)
+        # This can't happen because nodes with 0 instances are prohibited
+        # zeros = (sums == 0)
+        # predictions[zeros] = 1
+        # sums[zeros] = predictions.shape[1]
+        return predictions / sums[:, np.newaxis]
 
     def node_count(self):
         def _count(node):
@@ -236,8 +236,7 @@ class TreeModel(TreeModelInterface):
             return self.instances[indices]
 
     def get_indices(self, nodes):
-        subsets = [node.subset for node in nodes]
-        if subsets:
+        if subsets := [node.subset for node in nodes]:
             return np.unique(np.hstack(subsets))
 
     @staticmethod
@@ -259,14 +258,13 @@ class TreeModel(TreeModelInterface):
             if isinstance(parent, NumericNode):
                 lower, upper = node.condition
                 if upper is None:
-                    rules.append("{} > {}".format(name, attr.repr_val(lower)))
+                    rules.append(f"{name} > {attr.repr_val(lower)}")
                 elif lower is None:
-                    rules.append("{} ≤ {}".format(name, attr.repr_val(upper)))
+                    rules.append(f"{name} ≤ {attr.repr_val(upper)}")
                 else:
-                    rules.append("{} < {} ≤ {}".format(
-                        attr.repr_val(lower), name, attr.repr_val(upper)))
+                    rules.append(f"{attr.repr_val(lower)} < {name} ≤ {attr.repr_val(upper)}")
             else:
-                rules.append("{}: {}".format(name, node.description))
+                rules.append(f"{name}: {node.description}")
             used_attrs.add(node.parent.attr_idx)
         return rules
 

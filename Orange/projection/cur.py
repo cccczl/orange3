@@ -106,10 +106,7 @@ class CUR(Projector):
         return m
 
     def transform(self, X, axis):
-        if axis == 0:
-            return X[:, self.features_]
-        else:
-            return X[self.samples_, :]
+        return X[:, self.features_] if axis == 0 else X[self.samples_, :]
 
     def _select_columns(self, X, UsV):
         U, s, V = UsV

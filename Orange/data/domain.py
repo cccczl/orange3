@@ -175,9 +175,10 @@ class Domain:
             indices = dict(chain.from_iterable(
                 ((var, idx), (var.name, idx), (idx, idx))
                 for idx, var in enumerate(self._variables)))
-            indices.update(chain.from_iterable(
-                ((var, -1-idx), (var.name, -1-idx), (-1-idx, -1-idx))
-                for idx, var in enumerate(self.metas)))
+            indices |= chain.from_iterable(
+                ((var, -1 - idx), (var.name, -1 - idx), (-1 - idx, -1 - idx))
+                for idx, var in enumerate(self.metas)
+            )
             self._indices = indices
 
     def __setstate__(self, state):
@@ -223,8 +224,7 @@ class Domain:
             return 0 if max_index == 1 else int(log(max_index, 10)) + 1
 
         def get_name(base, index, places):
-            return base if not places \
-                else "{} {:0{}}".format(base, index + 1, places)
+            return "{} {:0{}}".format(base, index + 1, places) if places else base
 
         if X.ndim != 2:
             raise ValueError('X must be a 2-dimensional array')
@@ -290,10 +290,7 @@ class Domain:
         if isinstance(var, Variable):
             index = self._indices.get(var.name)
             if index is not None:
-                if index >= 0:
-                    myvar = self.variables[index]
-                else:
-                    myvar = self.metas[-1 - index]
+                myvar = self.variables[index] if index >= 0 else self.metas[-1 - index]
                 if myvar == var:
                     return myvar
         return None
@@ -318,10 +315,7 @@ class Domain:
             if var is not None:
                 return var
             raise KeyError(idx)
-        if index >= 0:
-            return self.variables[index]
-        else:
-            return self.metas[-1 - index]
+        return self.variables[index] if index >= 0 else self.metas[-1 - index]
 
     def __contains__(self, item):
         """
@@ -365,7 +359,7 @@ class Domain:
         if equiv is not None:
             return self._indices[equiv]
 
-        raise ValueError("'%s' is not in domain" % var)
+        raise ValueError(f"'{var}' is not in domain")
 
     def has_discrete_attributes(self, include_class=False, include_metas=False):
         """
@@ -424,22 +418,38 @@ class Domain:
                 return inst._x, inst._y, inst._metas
             c = DomainConversion(inst.domain, self)
             l = len(inst.domain.attributes)
-            values = [(inst._x[i] if 0 <= i < l
-                       else inst._y[i - l] if i >= l
-                       else inst._metas[-i - 1])
-                      if isinstance(i, int)
-                      else (Unknown if not i else i(inst))
-                      for i in c.variables]
-            metas = [(inst._x[i] if 0 <= i < l
-                      else inst._y[i - l] if i >= l
-                      else inst._metas[-i - 1])
-                     if isinstance(i, int)
-                     else (Unknown if not i else i(inst))
-                     for i in c.metas]
+            values = [
+                (
+                    inst._x[i]
+                    if 0 <= i < l
+                    else inst._y[i - l]
+                    if i >= l
+                    else inst._metas[-i - 1]
+                )
+                if isinstance(i, int)
+                else i(inst)
+                if i
+                else Unknown
+                for i in c.variables
+            ]
+            metas = [
+                (
+                    inst._x[i]
+                    if 0 <= i < l
+                    else inst._y[i - l]
+                    if i >= l
+                    else inst._metas[-i - 1]
+                )
+                if isinstance(i, int)
+                else i(inst)
+                if i
+                else Unknown
+                for i in c.metas
+            ]
         else:
             nvars = len(self._variables)
             nmetas = len(self._metas)
-            if len(inst) != nvars and len(inst) != nvars + nmetas:
+            if len(inst) not in [nvars, nvars + nmetas]:
                 raise ValueError("invalid data length for domain")
             values = [var.to_val(val)
                       for var, val in zip(self._variables, inst)]
@@ -451,23 +461,22 @@ class Domain:
         nattrs = len(self.attributes)
         # Let np.array decide dtype for values
         return np.array(values[:nattrs]), np.array(values[nattrs:]),\
-               np.array(metas, dtype=object)
+                   np.array(metas, dtype=object)
 
     def select_columns(self, col_idx):
         attributes, col_indices = self._compute_col_indices(col_idx)
-        if attributes is not None:
-            n_attrs = len(self.attributes)
-            r_attrs = [attributes[i]
-                       for i, col in enumerate(col_indices)
-                       if 0 <= col < n_attrs]
-            r_classes = [attributes[i]
-                         for i, col in enumerate(col_indices)
-                         if col >= n_attrs]
-            r_metas = [attributes[i]
-                       for i, col in enumerate(col_indices) if col < 0]
-            return Domain(r_attrs, r_classes, r_metas)
-        else:
+        if attributes is None:
             return self
+        n_attrs = len(self.attributes)
+        r_attrs = [attributes[i]
+                   for i, col in enumerate(col_indices)
+                   if 0 <= col < n_attrs]
+        r_classes = [attributes[i]
+                     for i, col in enumerate(col_indices)
+                     if col >= n_attrs]
+        r_metas = [attributes[i]
+                   for i, col in enumerate(col_indices) if col < 0]
+        return Domain(r_attrs, r_classes, r_metas)
 
     def _compute_col_indices(self, col_idx):
         if col_idx is ...:
@@ -515,12 +524,15 @@ class Domain:
         )
 
     def __eq__(self, other):
-        if not isinstance(other, Domain):
-            return False
-
-        return (self.attributes == other.attributes and
-                self.class_vars == other.class_vars and
-                self.metas == other.metas)
+        return (
+            (
+                self.attributes == other.attributes
+                and self.class_vars == other.class_vars
+                and self.metas == other.metas
+            )
+            if isinstance(other, Domain)
+            else False
+        )
 
     def __hash__(self):
         if self._hash is None:

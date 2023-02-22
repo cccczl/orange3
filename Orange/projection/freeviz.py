@@ -107,19 +107,12 @@ class FreeViz(LinearProjector):
     def forces_classification(cls, distances, y, p=1):
         diffclass = scipy.spatial.distance.pdist(y.reshape(-1, 1), "hamming") != 0
         # handle attractive force
-        if p == 1:
-            F = -distances
-        else:
-            F = -(distances ** p)
-
+        F = -distances if p == 1 else -(distances ** p)
         # handle repulsive force
         mask = (diffclass &
                 (distances > np.finfo(distances.dtype).eps * 100))
         assert mask.shape == F.shape and mask.dtype == bool
-        if p == 1:
-            F[mask] = 1 / distances[mask]
-        else:
-            F[mask] = 1 / (distances[mask] ** p)
+        F[mask] = 1 / distances[mask] if p == 1 else 1 / (distances[mask] ** p)
         return F
 
     @classmethod
@@ -130,18 +123,20 @@ class FreeViz(LinearProjector):
         if weights is not None:
             weights = np.asarray(weights)
             if weights.ndim != 1:
-                raise ValueError("weights.ndim != 1 ({})".format(weights.ndim))
+                raise ValueError(f"weights.ndim != 1 ({weights.ndim})")
 
         N, P = X.shape
         _, dim = embeddings.shape
 
-        if not N == embeddings.shape[0]:
-            raise ValueError("X and embeddings must have the same length ({}!={})"
-                             .format(X.shape[0], embeddings.shape[0]))
+        if N != embeddings.shape[0]:
+            raise ValueError(
+                f"X and embeddings must have the same length ({X.shape[0]}!={embeddings.shape[0]})"
+            )
 
         if weights is not None and X.shape[0] != weights.shape[0]:
-            raise ValueError("X.shape[0] != weights.shape[0] ({}!={})"
-                             .format(X.shape[0], weights.shape[0]))
+            raise ValueError(
+                f"X.shape[0] != weights.shape[0] ({X.shape[0]}!={weights.shape[0]})"
+            )
 
         # all pairwise vector differences between embeddings
         embedding_diff = (embeddings[:, np.newaxis, :] -
@@ -217,8 +212,7 @@ class FreeViz(LinearProjector):
             forces = cls.forces_classification(D, y, p=p)
         else:
             forces = cls.forces_regression(D, y, p=p)
-        G = cls.gradient(X, embedding, forces, embedding_dist=D, weights=weights)
-        return G
+        return cls.gradient(X, embedding, forces, embedding_dist=D, weights=weights)
 
     @classmethod
     def _rotate(cls, A):
@@ -298,26 +292,20 @@ class FreeViz(LinearProjector):
             weights = np.asarray(weights)
 
         if isinstance(center, bool):
-            if center:
-                center = np.mean(X, axis=0)
-            else:
-                center = None
+            center = np.mean(X, axis=0) if center else None
         else:
             center = np.asarray(center, dtype=X.dtype)
             if center.shape != (P, ):
-                raise ValueError("center.shape != (X.shape[1], ) ({} != {})"
-                                 .format(center.shape, (X.shape[1], )))
+                raise ValueError(
+                    f"center.shape != (X.shape[1], ) ({center.shape} != {(X.shape[1], )})"
+                )
 
         if isinstance(scale, bool):
-            if scale:
-                scale = np.std(X, axis=0)
-            else:
-                scale = None
+            scale = np.std(X, axis=0) if scale else None
         else:
             scale = np.asarray(scale, dtype=X.dtype)
             if scale.shape != (P, ):
-                raise ValueError("scale.shape != (X.shape[1],) ({} != {}))"
-                                 .format(scale.shape, (P, )))
+                raise ValueError(f"scale.shape != (X.shape[1],) ({scale.shape} != {(P, )}))")
 
         if initial is not None:
             initial = np.asarray(initial)
@@ -367,7 +355,7 @@ class FreeViz(LinearProjector):
 
             A = Anew
             embeddings = np.dot(X, A)
-            step_i = step_i + 1
+            step_i += 1
 
         if dim == 2:
             A = cls._rotate(A)
@@ -387,8 +375,7 @@ class FreeViz(LinearProjector):
         else:
             axes_angle = np.linspace(0, 2 * np.pi, p, endpoint=False)
 
-        A = np.c_[np.cos(axes_angle), np.sin(axes_angle)]
-        return A
+        return np.c_[np.cos(axes_angle), np.sin(axes_angle)]
 
     @staticmethod
     def init_random(p, dim, rstate=None):

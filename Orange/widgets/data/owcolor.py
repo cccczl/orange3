@@ -101,10 +101,7 @@ class DiscAttrDesc(AttrDesc):
 
     @property
     def colors(self):
-        if self.new_colors is None:
-            return self.var.colors
-        else:
-            return self.new_colors
+        return self.var.colors if self.new_colors is None else self.new_colors
 
     def set_color(self, i, color):
         if self.new_colors is None:
@@ -317,9 +314,7 @@ class DiscColorTableModel(ColorTableModel):
             return QColor(*color)
         if role == Qt.ToolTipRole:
             return color_to_hex(color)
-        if role == ColorRole:
-            return color
-        return None
+        return color if role == ColorRole else None
 
     def setData(self, index, value, role):
         row, col = index.row(), index.column()
@@ -367,9 +362,7 @@ class ContColorTableModel(ColorTableModel):
                 return palette
             if role == StripRole:
                 return palette.color_strip(128, 16)
-            if role == Qt.SizeHintRole:
-                return QSize(150, 16)
-            return None
+            return QSize(150, 16) if role == Qt.SizeHintRole else None
 
         def _column2():
             if role == Qt.SizeHintRole:

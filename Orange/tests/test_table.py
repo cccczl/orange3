@@ -417,13 +417,13 @@ class TableTestCase(unittest.TestCase):
     def test_shuffle(self):
         d = data.Table("zoo")
         crc = d.checksum()
-        names = set(str(x["name"]) for x in d)
+        names = {str(x["name"]) for x in d}
         ids = d.ids
 
         with d.unlocked_reference():
             d.shuffle()
         self.assertNotEqual(crc, d.checksum())
-        self.assertSetEqual(names, set(str(x["name"]) for x in d))
+        self.assertSetEqual(names, {str(x["name"]) for x in d})
         self.assertTrue(np.any(ids - d.ids != 0))
         crc2 = d.checksum()
 
@@ -443,31 +443,22 @@ class TableTestCase(unittest.TestCase):
 
     @staticmethod
     def not_less_ex(ex1, ex2):
-        for v1, v2 in zip(ex1, ex2):
-            if v1 != v2:
-                return v1 < v2
-        return True
+        return next((v1 < v2 for v1, v2 in zip(ex1, ex2) if v1 != v2), True)
 
     @staticmethod
     def sorted(d):
-        for i in range(1, len(d)):
-            if not TableTestCase.not_less_ex(d[i - 1], d[i]):
-                return False
-        return True
+        return all(TableTestCase.not_less_ex(d[i - 1], d[i]) for i in range(1, len(d)))
 
     @staticmethod
     def not_less_ex_ord(ex1, ex2, ord):
-        for a in ord:
-            if ex1[a] != ex2[a]:
-                return ex1[a] < ex2[a]
-        return True
+        return next((ex1[a] < ex2[a] for a in ord if ex1[a] != ex2[a]), True)
 
     @staticmethod
     def sorted_ord(d, ord):
-        for i in range(1, len(d)):
-            if not TableTestCase.not_less_ex_ord(d[i - 1], d[i], ord):
-                return False
-        return True
+        return all(
+            TableTestCase.not_less_ex_ord(d[i - 1], d[i], ord)
+            for i in range(1, len(d))
+        )
 
     def test_copy(self):
         t = data.Table.from_numpy(
@@ -817,8 +808,11 @@ class TableTestCase(unittest.TestCase):
         for args, expected in filters:
             f = fs(var, *args)
             filtered_data = filter.Values([f])(data)
-            self.assertEqual(len(filtered_data), expected["rows"],
-                             "{} returned wrong number of rows".format(args))
+            self.assertEqual(
+                len(filtered_data),
+                expected["rows"],
+                f"{args} returned wrong number of rows",
+            )
 
     def test_filter_value_continuous(self):
         d = data.Table("iris")
@@ -1138,8 +1132,11 @@ class TableTestCase(unittest.TestCase):
         for args, expected in filters:
             f = fs(var, *args)
             filtered_data = filter.Values([f])(data)
-            self.assertEqual(len(filtered_data), expected["rows"],
-                             "{} returned wrong number of rows".format(args))
+            self.assertEqual(
+                len(filtered_data),
+                expected["rows"],
+                f"{args} returned wrong number of rows",
+            )
 
     def test_table_dtypes(self):
         table = data.Table("iris")
@@ -1213,16 +1210,16 @@ class TableTestCase(unittest.TestCase):
             iris.X = sp.csr_matrix(iris.X)
         # instance
         s0 = "[sepal length=5.1, sepal width=3.5, " \
-             "petal length=1.4, petal width=0.2 | Iris-setosa]"
+                 "petal length=1.4, petal width=0.2 | Iris-setosa]"
         self.assertEqual(s0, str(iris[0]))
         # table
         table_str = str(iris)
         lines = table_str.split('\n')
         self.assertEqual(150, len(lines))
-        self.assertEqual("[" + s0 + ",", lines[0])
+        self.assertEqual(f"[{s0},", lines[0])
         slast = "[sepal length=5.9, sepal width=3.0, " \
-                "petal length=5.1, petal width=1.8 | Iris-virginica]"
-        self.assertEqual(" " + slast + "]", lines[-1])
+                    "petal length=5.1, petal width=1.8 | Iris-virginica]"
+        self.assertEqual(f" {slast}]", lines[-1])
 
 
 def column_sizes(table):
@@ -1277,8 +1274,7 @@ class TableTests(unittest.TestCase):
         meta_vars = [data.DiscreteVariable(name=m, values=map(str, range(5)))
                      if isinstance(m, str) else m for m in metas]
 
-        domain = data.Domain(attr_vars, class_vars, meta_vars)
-        return domain
+        return data.Domain(attr_vars, class_vars, meta_vars)
 
 
 class CreateEmptyTable(TableTests):
@@ -1334,6 +1330,7 @@ class CreateTableWithFilename(TableTests):
 class CreateTableWithUrl(TableTests):
     def test_url_no_scheme(self):
 
+
         class SkipRest(Exception):
             pass
 
@@ -1346,7 +1343,7 @@ class CreateTableWithUrl(TableTests):
             except SkipRest:
                 pass
 
-        mock_urlopen.assert_called_once_with('http://' + url)
+        mock_urlopen.assert_called_once_with(f'http://{url}')
 
     class _MockUrlOpen(MagicMock):
         headers = {'content-disposition': 'attachment; filename="Something-FormResponses.tsv"; '
@@ -1500,7 +1497,7 @@ class CreateTableWithData(TableTests):
 
     def test_creates_a_table_from_list_of_instances(self):
         table = data.Table('iris')
-        new_table = data.Table.from_list(table.domain, [d for d in table])
+        new_table = data.Table.from_list(table.domain, list(table))
         self.assertIs(table.domain, new_table.domain)
         np.testing.assert_almost_equal(table.X, new_table.X)
         np.testing.assert_almost_equal(table.Y, new_table.Y)
@@ -1510,7 +1507,7 @@ class CreateTableWithData(TableTests):
 
     def test_creates_a_table_from_list_of_instances_with_metas(self):
         table = data.Table('zoo')
-        new_table = data.Table.from_list(table.domain, [d for d in table])
+        new_table = data.Table.from_list(table.domain, list(table))
         self.assertIs(table.domain, new_table.domain)
         np.testing.assert_almost_equal(table.X, new_table.X)
         np.testing.assert_almost_equal(table.Y, new_table.Y)
@@ -1543,7 +1540,7 @@ class CreateTableWithData(TableTests):
         np.testing.assert_almost_equal(table.metas, self.meta_data)
 
     def test_creates_a_discrete_class_if_Y_has_few_distinct_values(self):
-        Y = np.array([float(np.random.randint(0, 2)) for i in self.data])
+        Y = np.array([float(np.random.randint(0, 2)) for _ in self.data])
         table = data.Table.from_numpy(None, self.data, Y, self.meta_data)
 
         np.testing.assert_almost_equal(table.Y, Y)
@@ -1801,11 +1798,16 @@ class CreateTableWithDomainAndTable(TableTests):
         _, _, m = column_sizes(self.table)
         order = np.random.permutation(range(-m, 0))
         new_metas = [self.domain.metas[::-1][i] for i in order]
-        new_domain = self.create_domain(new_metas[0:2], [new_metas[2]], new_metas[3:5])
+        new_domain = self.create_domain(new_metas[:2], [new_metas[2]], new_metas[3:5])
         new_table = data.Table.from_table(new_domain, self.table)
 
         self.assert_table_with_filter_matches(
-            new_table, self.table, xcols=order[0:2], ycols=order[2], mcols=order[3:5])
+            new_table,
+            self.table,
+            xcols=order[:2],
+            ycols=order[2],
+            mcols=order[3:5],
+        )
 
     def test_can_use_combination_of_all_as_new_columns(self):
         a, c, m = column_sizes(self.table)
@@ -3369,8 +3371,8 @@ class TestTableSparseDense(unittest.TestCase):
         # add 2*n_attrs+1 sparse feature, should became sparse
         domain = self.iris.domain.copy()
         domain.attributes += tuple(
-            ContinuousVariable('S' + str(i), compute_value=SparseCV(), sparse=True)
-            for i in range(2*n_attrs + 1)
+            ContinuousVariable(f'S{str(i)}', compute_value=SparseCV(), sparse=True)
+            for i in range(2 * n_attrs + 1)
         )
         d = self.iris.transform(domain)
         self.assertTrue(sp.issparse(d.X))
@@ -3397,7 +3399,7 @@ class TestTableSparseDense(unittest.TestCase):
         # replace metas with text and 100 sparse features, should be dense
         domain = self.iris.domain.copy()
         domain._metas = (StringVariable('text'),) + tuple(
-            ContinuousVariable('S' + str(i), compute_value=SparseCV(), sparse=True)
+            ContinuousVariable(f'S{str(i)}', compute_value=SparseCV(), sparse=True)
             for i in range(100)
         )
         d = self.iris.transform(domain)

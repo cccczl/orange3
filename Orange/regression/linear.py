@@ -141,7 +141,7 @@ class LinearModel(SklModel):
         return self.skl_model.coef_
 
     def __str__(self):
-        return 'LinearModel {}'.format(self.skl_model)
+        return f'LinearModel {self.skl_model}'
 
 
 class PolynomialModel(Model):
@@ -155,7 +155,7 @@ class PolynomialModel(Model):
         return self.model.predict(X)
 
     def __str__(self):
-        return 'PolynomialModel {}'.format(self.model)
+        return f'PolynomialModel {self.model}'
 
 
 PolynomialLearner.__returns__ = PolynomialModel

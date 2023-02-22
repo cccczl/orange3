@@ -53,10 +53,7 @@ class MeanModel(Model):
         # domain is None.
         self.domain = domain
         self.dist = dist
-        if dist.any():
-            self.mean = self.dist.mean()
-        else:
-            self.mean = 0.0
+        self.mean = self.dist.mean() if dist.any() else 0.0
 
     # noinspection PyPep8Naming
     def predict(self, X):
@@ -72,6 +69,6 @@ class MeanModel(Model):
         return numpy.full(len(X), self.mean)
 
     def __str__(self):
-        return 'MeanModel({})'.format(self.mean)
+        return f'MeanModel({self.mean})'
 
 MeanLearner.__returns__ = MeanModel

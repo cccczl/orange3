@@ -52,23 +52,20 @@ class SelectBestFeatures(Reprable):
 
     def __call__(self, data):
         n_attrs = len(data.domain.attributes)
-        if isinstance(self.k, float):
-            effective_k = np.round(self.k * n_attrs).astype(int) or 1
-        else:
-            effective_k = self.k
-
+        effective_k = (
+            np.round(self.k * n_attrs).astype(int) or 1
+            if isinstance(self.k, float)
+            else self.k
+        )
         method = self.method
         # select default method according to the provided data
         if method is None:
             autoMethod = True
-            discr_ratio = (sum(a.is_discrete
-                               for a in data.domain.attributes)
-                           / len(data.domain.attributes))
             if data.domain.has_discrete_class:
-                if discr_ratio >= 0.5:
-                    method = GainRatio()
-                else:
-                    method = ANOVA()
+                discr_ratio = (sum(a.is_discrete
+                                   for a in data.domain.attributes)
+                               / len(data.domain.attributes))
+                method = GainRatio() if discr_ratio >= 0.5 else ANOVA()
             else:
                 method = UnivariateLinearRegression()
 

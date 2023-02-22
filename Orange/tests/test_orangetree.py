@@ -49,7 +49,7 @@ class TestTree:
         # tests
         for lim in (1, 2, 30):
             args = dict(min_samples_split=2, min_samples_leaf=lim)
-            args.update(self.no_pruning_args)
+            args |= self.no_pruning_args
             clf = self.TreeLearner(binarize=False, **args)(self.data_mixed)
             self.assertTrue(all(len(node.subset) >= lim
                                 for node in self.all_nodes(clf.root)
@@ -69,8 +69,9 @@ class TestTree:
         lim = clf.MAX_BINARIZATION
 
         domain = Domain(
-            [DiscreteVariable("x", ("v{}".format(i) for i in range(lim + 1)))],
-            self.class_var)
+            [DiscreteVariable("x", (f"v{i}" for i in range(lim + 1)))],
+            self.class_var,
+        )
         data = Table(domain, np.zeros((100, 2)))
 
         clf.binarize = False
@@ -79,8 +80,8 @@ class TestTree:
         self.assertRaises(ValueError, clf, data)
 
         domain = Domain(
-            [DiscreteVariable("x", ("v{}".format(i) for i in range(lim)))],
-            self.class_var)
+            [DiscreteVariable("x", (f"v{i}" for i in range(lim)))], self.class_var
+        )
         data = Table(domain, np.zeros((100, 2)))
         clf.binarize = True
         clf(data)

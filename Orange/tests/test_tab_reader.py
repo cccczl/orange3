@@ -236,7 +236,7 @@ class TestTabReader(unittest.TestCase):
             self.data.attributes["b"] = "bb"
             fname = path.join(tempdir, "out.tab")
             TabReader.write_table_metadata(fname, self.data)
-            self.assertTrue(path.isfile(fname + ".metadata"))
+            self.assertTrue(path.isfile(f"{fname}.metadata"))
         finally:
             shutil.rmtree(tempdir)
 
@@ -246,7 +246,7 @@ class TestTabReader(unittest.TestCase):
             self.data.attributes = OrderedDict()
             fname = path.join(tempdir, "out.tab")
             TabReader.write_table_metadata(fname, self.data)
-            self.assertFalse(path.isfile(fname + ".metadata"))
+            self.assertFalse(path.isfile(f"{fname}.metadata"))
         finally:
             shutil.rmtree(tempdir)
 
@@ -256,10 +256,10 @@ class TestTabReader(unittest.TestCase):
             self.data.attributes["a"] = "aa"
             fname = path.join(tempdir, "out.tab")
             TabReader.write_table_metadata(fname, self.data)
-            self.assertTrue(path.isfile(fname + ".metadata"))
+            self.assertTrue(path.isfile(f"{fname}.metadata"))
             del self.data.attributes["a"]
             TabReader.write_table_metadata(fname, self.data)
-            self.assertFalse(path.isfile(fname + ".metadata"))
+            self.assertFalse(path.isfile(f"{fname}.metadata"))
         finally:
             shutil.rmtree(tempdir)
 
@@ -277,7 +277,7 @@ class TestTabReader(unittest.TestCase):
     def test_many_discrete():
         b = io.StringIO()
         b.write("Poser\nd\n\n")
-        b.writelines("K" + str(i) + "\n" for i in range(30000))
+        b.writelines(f"K{str(i)}" + "\n" for i in range(30000))
         start = time.time()
         _ = TabReader(b).read()
         elapsed = time.time() - start

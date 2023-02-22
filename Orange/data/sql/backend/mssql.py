@@ -44,7 +44,7 @@ class PymssqlBackend(Backend):
         """
 
     def quote_identifier(self, name):
-        return "[{}]".format(name)
+        return f"[{name}]"
 
     def unquote_identifier(self, quoted_name):
         return quoted_name[1:-1]
@@ -93,12 +93,9 @@ class PymssqlBackend(Backend):
                                        inspect_table)
 
         field_name_q = self.quote_identifier(field_name)
-        if var.is_continuous:
-            if isinstance(var, TimeVariable):
-                var.to_sql = ToSql("DATEDIFF(s, '1970-01-01 00:00:00', {})".format(field_name_q))
-            else:
-                var.to_sql = ToSql(field_name_q)
-        else:  # discrete or string
+        if var.is_continuous and isinstance(var, TimeVariable):
+            var.to_sql = ToSql(f"DATEDIFF(s, '1970-01-01 00:00:00', {field_name_q})")
+        else:
             var.to_sql = ToSql(field_name_q)
         return var
 
@@ -117,11 +114,9 @@ class PymssqlBackend(Backend):
             tv.have_time = True
             return tv
 
-        if type_code == STRING:
-            if inspect_table:
-                values = self.get_distinct_values(field_name, inspect_table)
-                if values:
-                    return DiscreteVariable(field_name, values)
+        if type_code == STRING and inspect_table:
+            if values := self.get_distinct_values(field_name, inspect_table):
+                return DiscreteVariable(field_name, values)
 
         return StringVariable(field_name)
 
@@ -135,16 +130,7 @@ class PymssqlBackend(Backend):
                     cur.execute(query)
                     result = cur.fetchone()
                     match = self.EST_ROWS_RE.search(result[0])
-                    if not match:
-                    # Either StatementEstRows was not found or
-                    # a float is received.
-                    # If it is a float then it is most probable
-                    # that the server's statistics are out of date
-                    # and the result is false. In that case
-                    # it is preferable to return None so
-                    # an exact count be used.
-                        return None
-                    return int(match.group(1))
+                    return int(match.group(1)) if match else None
                 finally:
                     cur.execute("SET SHOWPLAN_XML OFF")
             except pymssql.Error as ex:

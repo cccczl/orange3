@@ -76,8 +76,8 @@ class DomainContextHandler(ContextHandler):
 
         for name in kwargs:
             warnings.warn(
-                "{} is not a valid parameter for DomainContextHandler"
-                .format(name), OrangeDeprecationWarning
+                f"{name} is not a valid parameter for DomainContextHandler",
+                OrangeDeprecationWarning,
             )
 
     def encode_domain(self, domain):
@@ -104,11 +104,11 @@ class DomainContextHandler(ContextHandler):
         """Encode variables to a list mapping name to variable type
         or a list of values."""
 
-        if not encode_values:
-            return {v.name: vartype(v) for v in attributes}
-
-        return {v.name: v.values if v.is_discrete else vartype(v)
-                for v in attributes}
+        return (
+            {v.name: v.values if v.is_discrete else vartype(v) for v in attributes}
+            if encode_values
+            else {v.name: vartype(v) for v in attributes}
+        )
 
     def new_context(self, domain, attributes, metas):
         """Create a new context."""
@@ -181,9 +181,7 @@ class DomainContextHandler(ContextHandler):
                        for name_type in data]
             if dtype == -4:
                 return {get_var(name): val for (name, _), val in data.items()}
-            if dtype >= 100:
-                return get_var(data)
-            return value[0]
+            return get_var(data) if dtype >= 100 else value[0]
         else:
             return value
 
@@ -267,9 +265,11 @@ class DomainContextHandler(ContextHandler):
         Subclasses can override this method to checks data in alternative
         representations.
         """
-        if not isinstance(item, tuple):
-            return True
-        return self._var_exists(setting, item, attrs, metas)
+        return (
+            self._var_exists(setting, item, attrs, metas)
+            if isinstance(item, tuple)
+            else True
+        )
 
     @staticmethod
     def is_encoded_var(value):
@@ -284,11 +284,7 @@ class ClassValuesContextHandler(ContextHandler):
 
     def open_context(self, widget, classes):
         if isinstance(classes, Variable):
-            if classes.is_discrete:
-                classes = classes.values
-            else:
-                classes = None
-
+            classes = classes.values if classes.is_discrete else None
         super().open_context(widget, classes)
 
     def new_context(self, classes):
@@ -300,13 +296,12 @@ class ClassValuesContextHandler(ContextHandler):
         if isinstance(classes, Variable) and classes.is_continuous:
             return (self.PERFECT_MATCH if context.classes is None
                     else self.NO_MATCH)
+        # variable.values used to be a list, and so were context.classes
+        # cast to tuple for compatibility with past contexts
+        if context.classes is not None and tuple(context.classes) == classes:
+            return self.PERFECT_MATCH
         else:
-            # variable.values used to be a list, and so were context.classes
-            # cast to tuple for compatibility with past contexts
-            if context.classes is not None and tuple(context.classes) == classes:
-                return self.PERFECT_MATCH
-            else:
-                return self.NO_MATCH
+            return self.NO_MATCH
 
 
 class PerfectDomainContextHandler(DomainContextHandler):
@@ -358,22 +353,20 @@ class PerfectDomainContextHandler(DomainContextHandler):
         """Same as is domain context handler, but handles separately stored
         class_vars."""
 
-        if isinstance(setting, ContextSetting) and isinstance(value, str):
-
-            def _candidate_variables():
-                if not setting.exclude_attributes:
-                    yield from itertools.chain(context.attributes,
-                                               context.class_vars)
-                if not setting.exclude_metas:
-                    yield from context.metas
-
-            for aname, atype in _candidate_variables():
-                if aname == value:
-                    return value, atype
-
-            return value, -1
-        else:
+        if not isinstance(setting, ContextSetting) or not isinstance(value, str):
             return super().encode_setting(context, setting, value)
+        def _candidate_variables():
+            if not setting.exclude_attributes:
+                yield from itertools.chain(context.attributes,
+                                           context.class_vars)
+            if not setting.exclude_metas:
+                yield from context.metas
+
+        for aname, atype in _candidate_variables():
+            if aname == value:
+                return value, atype
+
+        return value, -1
 
 
 def migrate_str_to_variable(settings, names=None, none_placeholder=None):

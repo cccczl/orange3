@@ -13,7 +13,7 @@ from Orange.data import Table
 def parse_uri(uri):
     """Parse uri to db type and dictionary of connection parameters."""
     if uri == "":
-        return "", dict()
+        return "", {}
     parsed_uri = parse.urlparse(uri)
     database = parsed_uri.path.strip('/')
     if "/" in database:
@@ -67,10 +67,7 @@ class TestParseUri(unittest.TestCase):
         parameters = parse_uri("")
 
         self.assertEqual("", parameters[0])
-        self.assertDictContainsSubset(
-            dict(),
-            parameters[1]
-        )
+        self.assertDictContainsSubset({}, parameters[1])
 
     def assertDictContainsSubset(self, subset, dictionary, msg=None):
         """Checks whether dictionary is a superset of subset.
@@ -85,21 +82,21 @@ class TestParseUri(unittest.TestCase):
             if key not in dictionary:
                 missing.append(key)
             elif value != dictionary[key]:
-                mismatched.append('%s, expected: %s, actual: %s' %
-                                  (safe_repr(key), safe_repr(value),
-                                   safe_repr(dictionary[key])))
+                mismatched.append(
+                    f'{safe_repr(key)}, expected: {safe_repr(value)}, actual: {safe_repr(dictionary[key])}'
+                )
 
         if not (missing or mismatched):
             return
 
-        standardMsg = ''
         if missing:
-            standardMsg = 'Missing: %s' % ','.join(safe_repr(m) for m in
-                                                   missing)
+            standardMsg = f"Missing: {','.join(safe_repr(m) for m in missing)}"
+        else:
+            standardMsg = ''
         if mismatched:
             if standardMsg:
                 standardMsg += '; '
-            standardMsg += 'Mismatched values: %s' % ','.join(mismatched)
+            standardMsg += f"Mismatched values: {','.join(mismatched)}"
 
         self.fail(self._formatMessage(msg, standardMsg))
 
@@ -177,40 +174,32 @@ class PostgresTestConnection(DBTestConnection):
 
     def create_sql_table(self, data, sql_column_types=None,
                          sql_column_names=None, table_name=None):
-        data = list(data)
-
         if table_name is None:
             table_name = ''.join(random.choices(string.ascii_lowercase, k=16))
 
+        data = list(data)
         if sql_column_types is None:
             column_size = self._get_column_types(data)
             sql_column_types = [
-                'float' if size == 0 else 'varchar({})'.format(size)
+                'float' if size == 0 else f'varchar({size})'
                 for size in column_size
             ]
 
         if sql_column_names is None:
-            sql_column_names = ["col{}".format(i)
-                                for i in range(len(sql_column_types))]
+            sql_column_names = [f"col{i}" for i in range(len(sql_column_types))]
         else:
-            sql_column_names = map(lambda x: '"{}"'.format(x), sql_column_names)
+            sql_column_names = map(lambda x: f'"{x}"', sql_column_names)
 
-        drop_table_sql = "DROP TABLE IF EXISTS {}".format(table_name)
+        drop_table_sql = f"DROP TABLE IF EXISTS {table_name}"
 
-        create_table_sql = "CREATE TABLE {} ({})".format(
-            table_name,
-            ", ".join('{} {}'.format(n, t)
-                      for n, t in zip(sql_column_names, sql_column_types)))
+        create_table_sql = f"""CREATE TABLE {table_name} ({", ".join(f'{n} {t}' for n, t in zip(sql_column_names, sql_column_types))})"""
 
         insert_values = ", ".join(
-            "({})".format(
-                ", ".join("NULL" if v is None else "'{}'".format(v)
-                          for v, t in zip(row, sql_column_types))
-            ) for row in data
+            f"""({", ".join("NULL" if v is None else f"'{v}'" for v, t in zip(row, sql_column_types))})"""
+            for row in data
         )
 
-        insert_sql = "INSERT INTO {} VALUES {}".format(table_name,
-                                                       insert_values)
+        insert_sql = f"INSERT INTO {table_name} VALUES {insert_values}"
 
         import psycopg2
         with psycopg2.connect(**self.params) as conn:
@@ -228,7 +217,7 @@ class PostgresTestConnection(DBTestConnection):
         import psycopg2
         with psycopg2.connect(**self.params) as conn:
             with conn.cursor() as curs:
-                curs.execute("DROP TABLE {}".format(table_name))
+                curs.execute(f"DROP TABLE {table_name}")
 
     def get_backend(self):
         from Orange.data.sql.backend import Psycopg2Backend
@@ -250,40 +239,32 @@ class MicrosoftTestConnection(DBTestConnection):
 
     def create_sql_table(self, data, sql_column_types=None,
                          sql_column_names=None, table_name=None):
-        data = list(data)
-
         if table_name is None:
             table_name = ''.join(random.choices(string.ascii_lowercase, k=16))
 
+        data = list(data)
         if sql_column_types is None:
             column_size = self._get_column_types(data)
             sql_column_types = [
-                'float' if size == 0 else 'varchar({})'.format(size)
+                'float' if size == 0 else f'varchar({size})'
                 for size in column_size
             ]
 
         if sql_column_names is None:
-            sql_column_names = ["col{}".format(i)
-                                for i in range(len(sql_column_types))]
+            sql_column_names = [f"col{i}" for i in range(len(sql_column_types))]
         else:
-            sql_column_names = map(lambda x: '"{}"'.format(x), sql_column_names)
+            sql_column_names = map(lambda x: f'"{x}"', sql_column_names)
 
-        drop_table_sql = "DROP TABLE IF EXISTS {}".format(table_name)
+        drop_table_sql = f"DROP TABLE IF EXISTS {table_name}"
 
-        create_table_sql = "CREATE TABLE {} ({})".format(
-            table_name,
-            ", ".join('{} {}'.format(n, t)
-                      for n, t in zip(sql_column_names, sql_column_types)))
+        create_table_sql = f"""CREATE TABLE {table_name} ({", ".join(f'{n} {t}' for n, t in zip(sql_column_names, sql_column_types))})"""
 
         insert_values = ", ".join(
-            "({})".format(
-                ", ".join("NULL" if v is None else "'{}'".format(v)
-                          for v, t in zip(row, sql_column_types))
-            ) for row in data
+            f"""({", ".join("NULL" if v is None else f"'{v}'" for v, t in zip(row, sql_column_types))})"""
+            for row in data
         )
 
-        insert_sql = "INSERT INTO {} VALUES {}".format(table_name,
-                                                       insert_values)
+        insert_sql = f"INSERT INTO {table_name} VALUES {insert_values}"
 
         import pymssql
         with pymssql.connect(**self.params) as conn:
@@ -300,7 +281,7 @@ class MicrosoftTestConnection(DBTestConnection):
         import pymssql
         with pymssql.connect(**self.params) as conn:
             with conn.cursor() as cursor:
-                cursor.execute("DROP TABLE {}".format(table_name))
+                cursor.execute(f"DROP TABLE {table_name}")
             conn.commit()
 
     def get_backend(self):
@@ -318,12 +299,11 @@ def dbs():
     """Parse env variable and initialize connection to given dbs."""
     params = connection_params()
 
-    db_conn = {}
-    for c in params:
-        if c and c in test_connections:
-            db_conn[c] = test_connections[c](params[c])
-
-    return db_conn
+    return {
+        c: test_connections[c](params[c])
+        for c in params
+        if c and c in test_connections
+    }
 
 
 class DataBaseTest:
@@ -334,35 +314,34 @@ class DataBaseTest:
         if ">" in db:
             i = db.find(">")
             if db[:i] in cls.db_conn and \
-                    cls.db_conn[db[:i]].version <= int(db[i + 1:]):
+                        cls.db_conn[db[:i]].version <= int(db[i + 1:]):
                 raise unittest.SkipTest(
-                    "This test is only run database version higher then {}"
-                    .format(db[i + 1:]))
+                    f"This test is only run database version higher then {db[i + 1:]}"
+                )
             else:
                 db = db[:i]
         elif "<" in db:
             i = db.find("<")
             if db[:i] in cls.db_conn and \
-                    cls.db_conn[db[:i]].version >= int(db[i + 1:]):
+                        cls.db_conn[db[:i]].version >= int(db[i + 1:]):
                 raise unittest.SkipTest(
-                    "This test is only run on database version lower then {}"
-                    .format(db[i + 1:]))
+                    f"This test is only run on database version lower then {db[i + 1:]}"
+                )
             else:
                 db = db[:i]
 
         if db in cls.db_conn:
             if not cls.db_conn[db].is_module:
                 raise unittest.SkipTest(
-                    "{} module is required for this database".format(
-                        cls.db_conn[db].module))
+                    f"{cls.db_conn[db].module} module is required for this database"
+                )
 
             elif not cls.db_conn[db].is_active:
                 raise unittest.SkipTest("Database is not running")
+        elif db in test_connections.keys():
+            raise unittest.SkipTest(f"No connection provided for {db}")
         else:
-            if db in test_connections.keys():
-                raise unittest.SkipTest("No connection provided for {}".format(db))
-            else:
-                raise Exception("Unsupported database")
+            raise Exception("Unsupported database")
 
         return db
 
@@ -411,13 +390,12 @@ class DataBaseTest:
             frame_locals = frame[0].f_locals
 
             for db in dbs:
-                name = 'test_db_' + db + '_' + function.__name__[5:]
+                name = f'test_db_{db}_{function.__name__[5:]}'
                 frame_locals[name] = cls._setup_test_with(function, db)
                 frame_locals[name].__name__ = name
                 frame_locals[name].place_as = function
                 if function.__doc__ is not None:
-                    frame_locals[name].__doc__ = 'On ' + db + ' run: ' + \
-                                                 function.__doc__
+                    frame_locals[name].__doc__ = f'On {db} run: {function.__doc__}'
 
             function.__test__ = False
 

@@ -38,9 +38,7 @@ class MeltContextHandler(ContextHandler):
         names = {var.name for var in potential_ids}
         if names == context.potential_ids:
             return self.PERFECT_MATCH
-        if context.values["idvar"] in names:
-            return self.MATCH
-        return self.NO_MATCH
+        return self.MATCH if context.values["idvar"] in names else self.NO_MATCH
 
     def encode_setting(self, context, setting, value):
         if setting.name == "idvar":

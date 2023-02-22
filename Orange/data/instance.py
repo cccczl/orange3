@@ -102,8 +102,7 @@ class Instance:
             key = self._domain.index(key)
         value = self._domain[key].to_val(value)
         if key >= 0 and not isinstance(value, (int, float)):
-            raise TypeError("Expected primitive value, got '%s'" %
-                            type(value).__name__)
+            raise TypeError(f"Expected primitive value, got '{type(value).__name__}'")
 
         if 0 <= key < len(self._domain.attributes):
             self._x[key] = value
@@ -138,26 +137,25 @@ class Instance:
 
     @staticmethod
     def str_values(data, variables, limit=True):
-        if limit:
-            s = ", ".join(var.str_val(val)
-                          for var, val in zip(variables, data[:5]))
-            if len(data) > 5:
-                s += ", ..."
-            return s
-        else:
+        if not limit:
             return ", ".join(var.str_val(val)
                              for var, val in zip(variables, data))
+        s = ", ".join(var.str_val(val)
+                      for var, val in zip(variables, data[:5]))
+        if len(data) > 5:
+            s += ", ..."
+        return s
 
     def _str(self, limit):
-        s = "[" + self.str_values(self._x, self._domain.attributes, limit)
+        s = f"[{self.str_values(self._x, self._domain.attributes, limit)}"
         if self._domain.class_vars:
             s += " | " + \
-                 self.str_values(self._y, self._domain.class_vars, limit)
+                     self.str_values(self._y, self._domain.class_vars, limit)
         s += "]"
         if self._domain.metas:
             s += " {" + \
-                 self.str_values(self._metas, self._domain.metas, limit) + \
-                 "}"
+                     self.str_values(self._metas, self._domain.metas, limit) + \
+                     "}"
         return s
 
     def __str__(self):
@@ -232,7 +230,8 @@ class Instance:
         classes.
         """
         self._check_single_class()
-        if not isinstance(value, Real):
-            self._y[0] = self._domain.class_var.to_val(value)
-        else:
-            self._y[0] = value
+        self._y[0] = (
+            value
+            if isinstance(value, Real)
+            else self._domain.class_var.to_val(value)
+        )

@@ -164,7 +164,7 @@ def deprecated(obj):
       Instead, use C.new() ...
     'old behavior'
     """
-    alternative = ('; Instead, use ' + obj) if isinstance(obj, str) else ''
+    alternative = f'; Instead, use {obj}' if isinstance(obj, str) else ''
 
     def decorator(func):
         @wraps(func)
@@ -184,9 +184,7 @@ def literal_eval(literal):
     import ast
     # ast.literal_eval does not parse empty set ¯\_(ツ)_/¯
 
-    if literal == "set()":
-        return set()
-    return ast.literal_eval(literal)
+    return set() if literal == "set()" else ast.literal_eval(literal)
 
 
 op_map = {
@@ -274,13 +272,13 @@ class Registry(type):
             cls.registry[name] = cls
         return cls
 
-    def __iter__(cls):
-        return iter(cls.registry)
+    def __iter__(self):
+        return iter(self.registry)
 
-    def __str__(cls):
-        if cls in cls.registry.values():
-            return cls.__name__
-        return '{}({{{}}})'.format(cls.__name__, ', '.join(cls.registry))
+    def __str__(self):
+        if self in self.registry.values():
+            return self.__name__
+        return '{}({{{}}})'.format(self.__name__, ', '.join(self.registry))
 
 
 def namegen(prefix='_', *args, spec_count=count, **kwargs):
@@ -337,8 +335,7 @@ def inherit_docstrings(cls):
     for method in cls.__dict__.values():
         if inspect.isfunction(method) and method.__doc__ is None:
             for parent in cls.__mro__[1:]:
-                __doc__ = getattr(parent, method.__name__, None).__doc__
-                if __doc__:
+                if __doc__ := getattr(parent, method.__name__, None).__doc__:
                     method.__doc__ = __doc__
                     break
     return cls
@@ -382,7 +379,7 @@ def Reprable_repr_pretty(name, itemsiter, printer, cycle):
         printer.text("{0}(...)".format("name"))
     else:
         def printitem(field, value):
-            printer.text(field + "=")
+            printer.text(f"{field}=")
             printer.pretty(value)
 
         def printsep():
@@ -461,12 +458,11 @@ class Reprable:
     def _reprable_omit_param(self, name, default, value):
         if default is value:
             return True
-        if type(default) is type(value):
-            try:
-                return default == value
-            except (ValueError, TypeError):
-                return False
-        else:
+        if type(default) is not type(value):
+            return False
+        try:
+            return default == value
+        except (ValueError, TypeError):
             return False
 
     def _reprable_items(self):
@@ -560,10 +556,7 @@ def frompyfunc(func: Callable, nin: int, nout: int, dtype: 'DTypeLike'):
             out = np.empty(shape, dtype)
 
         res = func_(*args, out, dtype=dtype, casting=casting, **kwargs)
-        if res.shape == () and not have_out:
-            return res.item()
-        else:
-            return res
+        return res.item() if res.shape == () and not have_out else res
 
     return funcv
 

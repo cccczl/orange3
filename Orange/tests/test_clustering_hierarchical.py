@@ -122,7 +122,8 @@ class TestHierarchical(unittest.TestCase):
             yield from zip(i1, i2)
 
         def score(root):
-            return sum([self.matrix[i, j] for i, j in pairs(indices(root))])
+            return sum(self.matrix[i, j] for i, j in pairs(indices(root)))
+
         score_unordered = score(self.cluster)
         score_ordered = score(ordered)
         self.assertGreater(score_unordered, score_ordered)

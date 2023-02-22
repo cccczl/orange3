@@ -34,9 +34,11 @@ class Scorer(Reprable):
         """Return type name with camel-case separated into words.
         Derived classes can provide a better property or a class attribute.
         """
-        return re.sub("([a-z])([A-Z])",
-                      lambda mo: mo.group(1) + " " + mo.group(2).lower(),
-                      type(self).__name__)
+        return re.sub(
+            "([a-z])([A-Z])",
+            lambda mo: f"{mo.group(1)} {mo.group(2).lower()}",
+            type(self).__name__,
+        )
 
     @staticmethod
     def _friendly_vartype_name(vartype):
@@ -46,20 +48,15 @@ class Scorer(Reprable):
             return "numeric"
         # Fallbacks
         name = vartype.__name__
-        if name.endswith("Variable"):
-            return name.lower()[:-8]
-        return name
+        return name.lower()[:-8] if name.endswith("Variable") else name
 
     def __call__(self, data, feature=None):
         if not data.domain.class_var:
-            raise ValueError(
-                "{} requires data with a target variable."
-                .format(self.friendly_name))
+            raise ValueError(f"{self.friendly_name} requires data with a target variable.")
         if not isinstance(data.domain.class_var, self.class_type):
             raise ValueError(
-                "{} requires a {} target variable."
-                .format(self.friendly_name,
-                        self._friendly_vartype_name(self.class_type)))
+                f"{self.friendly_name} requires a {self._friendly_vartype_name(self.class_type)} target variable."
+            )
 
         if feature is not None:
             f = data.domain[feature]
@@ -72,9 +69,8 @@ class Scorer(Reprable):
         for var in data.domain.attributes:
             if not isinstance(var, self.feature_type):
                 raise ValueError(
-                    "{} cannot score {} variables."
-                    .format(self.friendly_name,
-                            self._friendly_vartype_name(type(var))))
+                    f"{self.friendly_name} cannot score {self._friendly_vartype_name(type(var))} variables."
+                )
 
         if feature is not None:
             return self.score_data(data, feature)
@@ -99,9 +95,7 @@ class SklScorer(Scorer, metaclass=WrapperMeta):
 
     def score_data(self, data, feature):
         score = self.score(data.X, data.Y)
-        if feature is not None:
-            return score[0]
-        return score
+        return score[0] if feature is not None else score
 
 
 class Chi2(SklScorer):
@@ -172,7 +166,7 @@ class LearnerScorer(Scorer):
             for attr, score in zip(model_attributes, scores):
                 # Go up the chain of preprocessors to obtain the original variable, but no further
                 # than the data.domain, because the data is perhaphs already preprocessed.
-                while not (attr in data.domain) and attr.compute_value is not None:
+                while attr not in data.domain and attr.compute_value is not None:
                     if hasattr(attr.compute_value, 'variable'):
                         attr = getattr(attr.compute_value, 'variable')
                     else:
@@ -190,7 +184,7 @@ class LearnerScorer(Scorer):
             scores = np.array([join_derived_features(row) for row in scores])
 
         return scores[:, data.domain.attributes.index(feature)] \
-            if feature else scores
+                if feature else scores
 
 
 class ClassificationScorer(Scorer):
@@ -221,7 +215,7 @@ class ClassificationScorer(Scorer):
 
     def score_data(self, data, feature):
         instances_with_class = \
-            np.sum(distribution.Discrete(data, data.domain.class_var))
+                np.sum(distribution.Discrete(data, data.domain.class_var))
 
         def score_from_contingency(f):
             cont = contingency.Discrete(data, f)
@@ -229,9 +223,7 @@ class ClassificationScorer(Scorer):
                 cont, 1. - np.sum(cont.unknowns)/instances_with_class)
 
         scores = [score_from_contingency(f) for f in data.domain.attributes]
-        if feature is not None:
-            return scores[0]
-        return scores
+        return scores[0] if feature is not None else scores
 
 
 def _entropy(dist):
@@ -266,9 +258,10 @@ class FCBF(ClassificationScorer):
     """
     def score_data(self, data, feature=None):
         attributes = data.domain.attributes
-        s = []
-        for i, attr in enumerate(attributes):
-            s.append((_symmetrical_uncertainty(data, attr, data.domain.class_var), i))
+        s = [
+            (_symmetrical_uncertainty(data, attr, data.domain.class_var), i)
+            for i, attr in enumerate(attributes)
+        ]
         s.sort()
         worst = []
 
@@ -292,7 +285,7 @@ class FCBF(ClassificationScorer):
             p += 1
         best = s
         scores = [i[0] for i in sorted(chain(best, worst), key=lambda i: i[1])]
-        return np.array(scores) if not feature else scores[0]
+        return scores[0] if feature else np.array(scores)
 
 
 class InfoGain(ClassificationScorer):
@@ -374,9 +367,7 @@ class ReliefF(Scorer):
                                      self.n_iterations, self.k_nearest,
                                      np.array([a.is_discrete for a in data.domain.attributes]),
                                      rstate))
-        if feature:
-            return weights[0]
-        return weights
+        return weights[0] if feature else weights
 
 
 class RReliefF(Scorer):
@@ -406,9 +397,7 @@ class RReliefF(Scorer):
                                       self.n_iterations, self.k_nearest,
                                       np.array([a.is_discrete for a in data.domain.attributes]),
                                       rstate))
-        if feature:
-            return weights[0]
-        return weights
+        return weights[0] if feature else weights
 
 
 if __name__ == '__main__':

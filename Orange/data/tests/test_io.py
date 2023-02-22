@@ -43,7 +43,7 @@ class TestTableFilters(unittest.TestCase):
         np.testing.assert_array_equal(['1', '2', '1', '2', 'a'], values)
 
         # just below the threshold for string variable
-        in_values = list(map(lambda x: str(x) + "a", range(24))) + ["a"] * 76
+        in_values = list(map(lambda x: f"{str(x)}a", range(24))) + ["a"] * 76
         valuemap, values, coltype = guess_data_type(in_values)
         self.assertEqual(DiscreteVariable, coltype)
         self.assertEqual(natural_sorted(set(in_values)), valuemap)
@@ -52,14 +52,14 @@ class TestTableFilters(unittest.TestCase):
     def test_guess_data_type_string(self):
         # should be StringVariable
         # too many different values for discrete
-        in_values = list(map(lambda x: str(x) + "a", range(90)))
+        in_values = list(map(lambda x: f"{str(x)}a", range(90)))
         valuemap, values, coltype = guess_data_type(in_values)
         self.assertEqual(StringVariable, coltype)
         self.assertIsNone(valuemap)
         np.testing.assert_array_equal(in_values, values)
 
         # more than len(values)**0.7
-        in_values = list(map(lambda x: str(x) + "a", range(25))) + ["a"] * 75
+        in_values = list(map(lambda x: f"{str(x)}a", range(25))) + ["a"] * 75
         valuemap, values, coltype = guess_data_type(in_values)
         self.assertEqual(StringVariable, coltype)
         self.assertIsNone(valuemap)
@@ -68,7 +68,7 @@ class TestTableFilters(unittest.TestCase):
         # more than 100 different values - exactly 101
         # this is the case when len(values)**0.7 rule would vote for the
         # DiscreteVariable
-        in_values = list(map(lambda x: str(x) + "a", range(100))) + ["a"] * 999
+        in_values = list(map(lambda x: f"{str(x)}a", range(100))) + ["a"] * 999
         valuemap, values, coltype = guess_data_type(in_values)
         self.assertEqual(StringVariable, coltype)
         self.assertIsNone(valuemap)

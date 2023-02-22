@@ -122,7 +122,7 @@ VariableState = Dict[VarKey, State]
 
 def var_key(var):
     # type: (Orange.data.Variable) -> Tuple[str, str]
-    qname = "{}.{}".format(type(var).__module__, type(var).__name__)
+    qname = f"{type(var).__module__}.{type(var).__name__}"
     return qname, var.name
 
 
@@ -554,7 +554,7 @@ class OWImpute(OWWidget):
         for i, var in enumerate(self.varmodel):
             method = self.get_method_for_column(i)
             if not isinstance(method, AsDefault):
-                specific.append("{} ({})".format(var.name, str(method)))
+                specific.append(f"{var.name} ({str(method)})")
 
         default = self.create_imputer(Method.AsAboveSoBelow)
         if specific:

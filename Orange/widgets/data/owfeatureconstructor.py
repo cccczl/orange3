@@ -109,8 +109,7 @@ def selected_row(view):
         raise ValueError("invalid 'selectionMode'")
 
     sel_model = view.selectionModel()
-    indexes = sel_model.selectedRows()
-    if indexes:
+    if indexes := sel_model.selectedRows():
         assert len(indexes) == 1
         return indexes[0].row()
     else:
@@ -240,12 +239,12 @@ Categorical features are passed as strings
             func = self.funcs_model[index]
             if func in ["atan2", "fmod", "ldexp", "log",
                         "pow", "copysign", "hypot"]:
-                self.insert_into_expression(func + "(,)")
+                self.insert_into_expression(f"{func}(,)")
                 self.expressionedit.cursorBackward(False, 2)
             elif func in ["e", "pi"]:
                 self.insert_into_expression(func)
             else:
-                self.insert_into_expression(func + "()")
+                self.insert_into_expression(f"{func}()")
                 self.expressionedit.cursorBackward(False)
             self.functionscb.setCurrentIndex(0)
 
@@ -357,16 +356,15 @@ def variable_icon(dtype):
 class FeatureItemDelegate(QStyledItemDelegate):
     @staticmethod
     def displayText(value, _):
-        return value.name + " := " + value.expression
+        return f"{value.name} := {value.expression}"
 
 
 class DescriptorModel(itemmodels.PyListModel):
     def data(self, index, role=Qt.DisplayRole):
-        if role == Qt.DecorationRole:
-            value = self[index.row()]
-            return variable_icon(type(value))
-        else:
+        if role != Qt.DecorationRole:
             return super().data(index, role)
+        value = self[index.row()]
+        return variable_icon(type(value))
 
 
 def freevars(exp: ast.AST, env: List[str]):
@@ -503,9 +501,7 @@ class FeatureConstructorHandler(DomainContextHandler):
         for var in metas:
             available[sanitized_name(var)] = None
 
-        if freevars(exp_ast, list(available)):
-            return False
-        return True
+        return not freevars(exp_ast, list(available))
 
 
 class OWFeatureConstructor(OWWidget, ConcurrentWidgetMixin):
@@ -817,9 +813,9 @@ class OWFeatureConstructor(OWWidget, ConcurrentWidgetMixin):
 
     def on_done(self, result: "Result") -> None:
         data, attrs = result.data, result.attributes
-        disc_attrs_not_ok = self.check_attrs_values(
-            [var for var in attrs if var.is_discrete], data)
-        if disc_attrs_not_ok:
+        if disc_attrs_not_ok := self.check_attrs_values(
+            [var for var in attrs if var.is_discrete], data
+        ):
             self.Error.more_values_needed(disc_attrs_not_ok)
             return
 
@@ -1031,7 +1027,7 @@ def construct_variables(descriptions, data, use_values=False):
 def sanitized_name(name):
     sanitized = re.sub(r"\W", "_", name)
     if sanitized[0].isdigit():
-        sanitized = "_" + sanitized
+        sanitized = f"_{sanitized}"
     return sanitized
 
 
@@ -1081,9 +1077,7 @@ _cast_datetime_num_types = (int, float)
 def cast_datetime(e):
     if isinstance(e, _cast_datetime_num_types):
         return e
-    if e == "" or e is None:
-        return np.nan
-    return _parse_datetime(e)
+    return np.nan if e == "" or e is None else _parse_datetime(e)
 
 
 _cast_datetime = frompyfunc(cast_datetime, 1, 1, dtype=float)
@@ -1188,43 +1182,50 @@ __ALLOWED = [
     "zip"
 ]
 
-__GLOBALS = {name: getattr(builtins, name) for name in __ALLOWED
-             if hasattr(builtins, name)}
-
-__GLOBALS.update({name: getattr(math, name) for name in dir(math)
-                  if not name.startswith("_")})
-
-__GLOBALS.update({
-    "normalvariate": random.normalvariate,
-    "gauss": random.gauss,
-    "expovariate": random.expovariate,
-    "gammavariate": random.gammavariate,
-    "betavariate": random.betavariate,
-    "lognormvariate": random.lognormvariate,
-    "paretovariate": random.paretovariate,
-    "vonmisesvariate": random.vonmisesvariate,
-    "weibullvariate": random.weibullvariate,
-    "triangular": random.triangular,
-    "uniform": random.uniform,
-    "nanmean": lambda *args: np.nanmean(args),
-    "nanmin": lambda *args: np.nanmin(args),
-    "nanmax": lambda *args: np.nanmax(args),
-    "nansum": lambda *args: np.nansum(args),
-    "nanstd": lambda *args: np.nanstd(args),
-    "nanmedian": lambda *args: np.nanmedian(args),
-    "nancumsum": lambda *args: np.nancumsum(args),
-    "nancumprod": lambda *args: np.nancumprod(args),
-    "nanargmax": lambda *args: np.nanargmax(args),
-    "nanargmin": lambda *args: np.nanargmin(args),
-    "nanvar": lambda *args: np.nanvar(args),
-    "mean": lambda *args: np.mean(args),
-    "std": lambda *args: np.std(args),
-    "median": lambda *args: np.median(args),
-    "cumsum": lambda *args: np.cumsum(args),
-    "cumprod": lambda *args: np.cumprod(args),
-    "argmax": lambda *args: np.argmax(args),
-    "argmin": lambda *args: np.argmin(args),
-    "var": lambda *args: np.var(args)})
+__GLOBALS = (
+    {
+        name: getattr(builtins, name)
+        for name in __ALLOWED
+        if hasattr(builtins, name)
+    }
+    | {
+        name: getattr(math, name)
+        for name in dir(math)
+        if not name.startswith("_")
+    }
+    | {
+        "normalvariate": random.normalvariate,
+        "gauss": random.gauss,
+        "expovariate": random.expovariate,
+        "gammavariate": random.gammavariate,
+        "betavariate": random.betavariate,
+        "lognormvariate": random.lognormvariate,
+        "paretovariate": random.paretovariate,
+        "vonmisesvariate": random.vonmisesvariate,
+        "weibullvariate": random.weibullvariate,
+        "triangular": random.triangular,
+        "uniform": random.uniform,
+        "nanmean": lambda *args: np.nanmean(args),
+        "nanmin": lambda *args: np.nanmin(args),
+        "nanmax": lambda *args: np.nanmax(args),
+        "nansum": lambda *args: np.nansum(args),
+        "nanstd": lambda *args: np.nanstd(args),
+        "nanmedian": lambda *args: np.nanmedian(args),
+        "nancumsum": lambda *args: np.nancumsum(args),
+        "nancumprod": lambda *args: np.nancumprod(args),
+        "nanargmax": lambda *args: np.nanargmax(args),
+        "nanargmin": lambda *args: np.nanargmin(args),
+        "nanvar": lambda *args: np.nanvar(args),
+        "mean": lambda *args: np.mean(args),
+        "std": lambda *args: np.std(args),
+        "median": lambda *args: np.median(args),
+        "cumsum": lambda *args: np.cumsum(args),
+        "cumprod": lambda *args: np.cumprod(args),
+        "argmax": lambda *args: np.argmax(args),
+        "argmin": lambda *args: np.argmin(args),
+        "var": lambda *args: np.var(args),
+    }
+)
 
 
 class FeatureFunc:
@@ -1274,10 +1275,7 @@ class FeatureFunc:
             else:
                 raise
 
-        if not cols:
-            args = [()] * len(table)
-        else:
-            args = zip(*cols)
+        args = zip(*cols) if cols else [()] * len(table)
         f = self.func
         if self.mask_exceptions:
             y = list(starmap(ftry(f, Exception, np.nan), args))

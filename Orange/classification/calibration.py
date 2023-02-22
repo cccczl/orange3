@@ -39,10 +39,7 @@ class ThresholdClassifier(Model):
         with np.errstate(invalid="ignore"):  # we fix nanx below
             vals = (class_probs >= self.threshold).astype(float)
         vals[np.isnan(class_probs)] = np.nan
-        if ret == Model.Value:
-            return vals
-        else:
-            return vals, probs
+        return vals if ret == Model.Value else (vals, probs)
 
 
 class ThresholdLearner(Learner):
@@ -110,10 +107,7 @@ class CalibratedClassifier(Model):
         if ret == Model.Probs:
             return cal_probs
         vals = np.argmax(cal_probs, axis=1)
-        if ret == Model.Value:
-            return vals
-        else:
-            return vals, cal_probs
+        return vals if ret == Model.Value else (vals, cal_probs)
 
     def calibrated_probs(self, probs):
         if self.calibrators:
@@ -171,6 +165,5 @@ class CalibratedLearner(Learner):
         else:
             fitter = IsotonicRegression(out_of_bounds='clip')
         probabilities[np.isinf(probabilities)] = 1
-        calibrators = [fitter.fit(cls_probs, ytrue)
-                       for cls_idx, cls_probs in enumerate(probabilities.T)]
+        calibrators = [fitter.fit(cls_probs, ytrue) for cls_probs in probabilities.T]
         return CalibratedClassifier(model, calibrators)

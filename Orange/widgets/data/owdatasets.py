@@ -68,9 +68,7 @@ class UniformHeightDelegate(QStyledItemDelegate):
         opt.features |= QStyleOptionViewItem.HasDecoration
         widget = option.widget
         style = widget.style() if widget is not None else QApplication.style()
-        sh = style.sizeFromContents(
-            QStyle.CT_ItemViewItem, opt, QSize(), widget)
-        return sh
+        return style.sizeFromContents(QStyle.CT_ItemViewItem, opt, QSize(), widget)
 
 
 class SizeDelegate(UniformHeightDelegate):
@@ -428,8 +426,7 @@ class OWDataSets(OWWidget):
 
     def filter(self):
         filter_string = self.filterLineEdit.text().strip()
-        proxyModel = self.view.model()
-        if proxyModel:
+        if proxyModel := self.view.model():
             proxyModel.setFilterFixedString(filter_string)
 
     def __on_selection(self):
@@ -611,17 +608,16 @@ def description_html(datainfo):
     """
     Summarize a data info as a html fragment.
     """
-    html = []
-    year = " ({})".format(str(datainfo.year)) if datainfo.year else ""
-    source = ", from {}".format(datainfo.source) if datainfo.source else ""
+    year = f" ({str(datainfo.year)})" if datainfo.year else ""
+    source = f", from {datainfo.source}" if datainfo.source else ""
 
-    html.append("<b>{}</b>{}{}".format(escape(datainfo.title), year, source))
-    html.append("<p>{}</p>".format(datainfo.description))
-    seealso = make_html_list(datainfo.seealso)
-    if seealso:
+    html = [
+        f"<b>{escape(datainfo.title)}</b>{year}{source}",
+        f"<p>{datainfo.description}</p>",
+    ]
+    if seealso := make_html_list(datainfo.seealso):
         html.append("<small><b>See Also</b>\n" + seealso + "</small>")
-    refs = make_html_list(datainfo.references)
-    if refs:
+    if refs := make_html_list(datainfo.references):
         html.append("<small><b>References</b>\n" + refs + "</small>")
     return "\n".join(html)
 

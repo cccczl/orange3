@@ -69,9 +69,7 @@ def unique(sequence: Iterable[H]) -> Iterable[H]:
 class _DataType:
     def __eq__(self, other):
         """Equal if `other` has the same type and all elements compare equal."""
-        if type(self) is not type(other):
-            return False
-        return super().__eq__(other)
+        return False if type(self) is not type(other) else super().__eq__(other)
 
     def __ne__(self, other):
         return not self == other
@@ -856,16 +854,17 @@ class GroupItemsDialog(QDialog):
             "n_values_spin": self.n_values_spin.value(),
             "name_line_edit": self.new_name_line_edit.text()
         }
-        checked = [
-            i for i, s in enumerate(
-                [self.frequent_abs_radio,
-                 self.frequent_rel_radio,
-                 self.n_values_radio]
-            ) if s.isChecked()]
-        # when checked empty radio button for selected values is selected
-        # it is not stored in setting since its selection depends on users
-        # selection of values in list
-        if checked:
+        if checked := [
+            i
+            for i, s in enumerate(
+                [
+                    self.frequent_abs_radio,
+                    self.frequent_rel_radio,
+                    self.n_values_radio,
+                ]
+            )
+            if s.isChecked()
+        ]:
             settings_dict["selected_radio"] = checked[0]
         return settings_dict
 
@@ -1308,7 +1307,7 @@ class DiscreteVariableEditor(VariableEditor):
                         SourcePosRole: ci_index[ci],
                         SourceNameRole: ci
                     }
-                elif ci is not None and cj is not None:
+                elif ci is not None:
                     # rename or reorder
                     item = {
                         Qt.EditRole: cj,
@@ -1355,10 +1354,7 @@ class DiscreteVariableEditor(VariableEditor):
             midx = model.index(i, 0)
             category = midx.data(Qt.EditRole)
             source_pos = midx.data(SourcePosRole)  # type: Optional[int]
-            if source_pos is not None:
-                source_name = source[source_pos]
-            else:
-                source_name = None
+            source_name = source[source_pos] if source_pos is not None else None
             state = midx.data(EditStateRole)
             if state == ItemEditState.Dropped:
                 res.append((source_name, None))
@@ -1447,8 +1443,7 @@ class DiscreteVariableEditor(VariableEditor):
                 # new level -> remove it
                 model.removeRow(index.row())
             else:
-                assert False, "invalid state '{}' for {}" \
-                    .format(state, index.row())
+                assert False, f"invalid state '{state}' for {index.row()}"
 
     def _add_category(self):
         """
@@ -1520,8 +1515,7 @@ class DiscreteVariableEditor(VariableEditor):
         selmodel = view.selectionModel()
         index = view.currentIndex()
         if not selmodel.isSelected(index):
-            indices = selmodel.selectedRows(0)
-            if indices:
+            if indices := selmodel.selectedRows(0):
                 index = indices[0]
         # delegate to the CategoriesEditDelegate
         view.edit(index)
@@ -1643,15 +1637,13 @@ class VariableEditDelegate(QStyledItemDelegate):
                   option: QStyleOptionViewItem, index: QModelIndex) -> bool:
         multiplicity = index.data(MultiplicityRole)
         name = VariableListModel.effective_name(index)
-        if isinstance(multiplicity, int) and multiplicity > 1 \
-                and name is not None:
-            QToolTip.showText(
-                event.globalPos(), f"Name `{name}` is duplicated",
-                view.viewport()
-            )
-            return True
-        else:  # pragma: no cover
+        if not isinstance(multiplicity, int) or multiplicity <= 1 or name is None:
             return super().helpEvent(event, view, option, index)
+        QToolTip.showText(
+            event.globalPos(), f"Name `{name}` is duplicated",
+            view.viewport()
+        )
+        return True
 
 
 # Item model for edited variables (Variable). Define a display role to be the
@@ -1756,7 +1748,7 @@ class ReinterpretVariableEditor(VariableEditor):
         self.layout().addWidget(sedit)
         self.layout().addWidget(tedit)
 
-    def set_data(self, data, transform=()):  # pylint: disable=arguments-differ
+    def set_data(self, data, transform=()):    # pylint: disable=arguments-differ
         # type: (Optional[DataVector], Sequence[Transform]) -> None
         """
         Set the editor data.
@@ -1783,10 +1775,7 @@ class ReinterpretVariableEditor(VariableEditor):
 
         if type_transform is not None and data is not None:
             data = type_transform(data)
-        if data is not None:
-            var = data.vtype
-        else:
-            var = None
+        var = data.vtype if data is not None else None
         index = self._editors.get(type(var), -1)
         self.layout().setCurrentIndex(index)
         if index != -1:
@@ -1837,29 +1826,25 @@ class ReinterpretVariableEditor(VariableEditor):
         cb.setFocus()
         target = cb.itemData(index, Qt.UserRole)
         assert issubclass(target, VariableTypes)
-        if not isinstance(var, target):
-            if target == Real:
-                transform = AsContinuous()
-            elif target == Categorical:
-                transform = AsCategorical()
-            elif target == Time:
-                transform = AsTime()
-            elif target == String:
-                transform = AsString()
-        else:
+        if isinstance(var, target):
             transform = None
             var = self.var
 
+        elif target == Real:
+            transform = AsContinuous()
+        elif target == Categorical:
+            transform = AsCategorical()
+        elif target == Time:
+            transform = AsTime()
+        elif target == String:
+            transform = AsString()
         self.__transform = transform
         data = None
         if transform is not None and self.__data is not None:
             data = transform(self.__data)
             var = data.vtype
 
-        if var in self.__history:
-            tr = self.__history[var]
-        else:
-            tr = []
+        tr = self.__history[var] if var in self.__history else []
         # type specific transform
         specific = Specific.get(type(var), ())
         # merge tr and _tr
@@ -2062,8 +2047,7 @@ class OWEditDomain(widget.OWWidget):
         for i in range(model.rowCount()):
             midx = model.index(i, 0)
             coldesc = model.data(midx, Qt.EditRole)  # type: DataVector
-            tr = self._restore_transform(coldesc.vtype)
-            if tr:
+            if tr := self._restore_transform(coldesc.vtype):
                 model.setData(midx, tr, TransformRole)
 
         # Restore the current variable selection
@@ -2247,11 +2231,9 @@ class OWEditDomain(widget.OWWidget):
                       model.data(midx, TransformRole))
                      for i in range(model.rowCount())
                      for midx in [model.index(i)])
-            parts = []
-            for vector, trs in state:
-                if trs:
-                    parts.append(report_transform(vector.vtype, trs))
-            if parts:
+            if parts := [
+                report_transform(vector.vtype, trs) for vector, trs in state if trs
+            ]:
                 html = ("<ul>" +
                         "".join(map("<li>{}</li>".format, parts)) +
                         "</ul>")
@@ -2264,46 +2246,46 @@ class OWEditDomain(widget.OWWidget):
     @classmethod
     def migrate_context(cls, context, version):
         # pylint: disable=bad-continuation
-        if version is None or version <= 1:
-            hints_ = context.values.get("domain_change_hints", ({}, -2))[0]
-            store = []
-            ns = "Orange.data.variable"
-            mapping = {
-                "DiscreteVariable":
-                    lambda name, args, attrs:
-                        ("Categorical", (name, tuple(args[0][1]), ())),
-                "TimeVariable":
-                    lambda name, _, attrs:
-                        ("Time", (name, ())),
-                "ContinuousVariable":
-                    lambda name, _, attrs:
-                        ("Real", (name, (3, "f"), ())),
-                "StringVariable":
-                    lambda name, _, attrs:
-                        ("String", (name, ())),
-            }
-            for (module, class_name, *rest), target in hints_.items():
-                if module != ns:
-                    continue
-                f = mapping.get(class_name)
-                if f is None:
-                    continue
-                trs = []
-                key_mapped = f(*rest)
-                item_mapped = f(*target[2:])
-                src = reconstruct(*key_mapped)   # type: Variable
-                dst = reconstruct(*item_mapped)  # type: Variable
-                if src.name != dst.name:
-                    trs.append(Rename(dst.name))
-                if src.annotations != dst.annotations:
-                    trs.append(Annotate(dst.annotations))
-                if isinstance(src, Categorical):
-                    if src.categories != dst.categories:
-                        assert len(src.categories) == len(dst.categories)
-                        trs.append(CategoriesMapping(
-                            list(zip(src.categories, dst.categories))))
-                store.append((deconstruct(src), [deconstruct(tr) for tr in trs]))
-            context.values["_domain_change_store"] = (dict(store), -2)
+        if version is not None and version > 1:
+            return
+        hints_ = context.values.get("domain_change_hints", ({}, -2))[0]
+        store = []
+        ns = "Orange.data.variable"
+        mapping = {
+            "DiscreteVariable":
+                lambda name, args, attrs:
+                    ("Categorical", (name, tuple(args[0][1]), ())),
+            "TimeVariable":
+                lambda name, _, attrs:
+                    ("Time", (name, ())),
+            "ContinuousVariable":
+                lambda name, _, attrs:
+                    ("Real", (name, (3, "f"), ())),
+            "StringVariable":
+                lambda name, _, attrs:
+                    ("String", (name, ())),
+        }
+        for (module, class_name, *rest), target in hints_.items():
+            if module != ns:
+                continue
+            f = mapping.get(class_name)
+            if f is None:
+                continue
+            trs = []
+            key_mapped = f(*rest)
+            item_mapped = f(*target[2:])
+            src = reconstruct(*key_mapped)   # type: Variable
+            dst = reconstruct(*item_mapped)  # type: Variable
+            if src.name != dst.name:
+                trs.append(Rename(dst.name))
+            if src.annotations != dst.annotations:
+                trs.append(Annotate(dst.annotations))
+            if isinstance(src, Categorical) and src.categories != dst.categories:
+                assert len(src.categories) == len(dst.categories)
+                trs.append(CategoriesMapping(
+                    list(zip(src.categories, dst.categories))))
+            store.append((deconstruct(src), [deconstruct(tr) for tr in trs]))
+        context.values["_domain_change_store"] = (dict(store), -2)
 
 
 def enumerate_columns(
@@ -2512,10 +2494,7 @@ def apply_transform(var, table, trs):
         reinterpret, trs = trs[0], trs[1:]
         coldata = table_column_data(table, var)
         var = apply_reinterpret(var, reinterpret, coldata)
-    if trs:
-        return apply_transform_var(var, trs)
-    else:
-        return var
+    return apply_transform_var(var, trs) if trs else var
 
 
 def requires_unlink(var: Orange.data.Variable, trs: List[Transform]) -> bool:
@@ -2795,10 +2774,7 @@ def orange_isna(variable: Orange.data.Variable, data: ndarray) -> ndarray:
     """
     Return a bool mask masking N/A elements in `data` for the `variable`.
     """
-    if variable.is_primitive():
-        return np.isnan(data)
-    else:
-        return data == variable.Unknown
+    return np.isnan(data) if variable.is_primitive() else data == variable.Unknown
 
 
 class ToStringTransform(Transformation):
@@ -2818,9 +2794,7 @@ class ToStringTransform(Transformation):
 
 class ToContinuousTransform(Transformation):
     def transform(self, c):
-        if self.variable.is_time:
-            return c
-        elif self.variable.is_continuous:
+        if self.variable.is_time or self.variable.is_continuous:
             return c
         elif self.variable.is_discrete:
             lookup = Lookup(

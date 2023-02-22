@@ -72,9 +72,13 @@ class KMeansCorrelationHeuristic:
         data = Normalize()(self.data).X.T
         kmeans = KMeans(n_clusters=self.n_clusters, random_state=0).fit(data)
         labels_attrs = sorted([(l, i) for i, l in enumerate(kmeans.labels_)])
-        return [Cluster(instances=list(pair[1] for pair in group),
-                        centroid=kmeans.cluster_centers_[l])
-                for l, group in groupby(labels_attrs, key=lambda x: x[0])]
+        return [
+            Cluster(
+                instances=[pair[1] for pair in group],
+                centroid=kmeans.cluster_centers_[l],
+            )
+            for l, group in groupby(labels_attrs, key=lambda x: x[0])
+        ]
 
     def get_states(self, initial_state):
         """
@@ -148,7 +152,7 @@ class CorrelationRank(VizRankDialogAttrPair):
         data = self.master.cont_data.X
         corr = pearsonr if corr_type == CorrelationType.PEARSON else spearmanr
         r, p_value = corr(data[:, attr1], data[:, attr2])
-        return -abs(r) if not np.isnan(r) else NAN, r, p_value
+        return NAN if np.isnan(r) else -abs(r), r, p_value
 
     def row_for_state(self, score, state):
         attrs = sorted((self.attrs[x] for x in state), key=attrgetter("name"))

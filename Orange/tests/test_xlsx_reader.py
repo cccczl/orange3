@@ -17,11 +17,11 @@ def get_dataset(name):
 
 
 def get_xlsx_reader(name: str) -> io.ExcelReader:
-    return io.ExcelReader(get_dataset(name + ".xlsx"))
+    return io.ExcelReader(get_dataset(f"{name}.xlsx"))
 
 
 def get_xls_reader(name: str) -> io.XlsReader:
-    return io.XlsReader(get_dataset(name + ".xls"))
+    return io.XlsReader(get_dataset(f"{name}.xls"))
 
 
 def read_file(reader: Callable, name: str) -> Table:
@@ -87,7 +87,7 @@ class TestExcelHeader0(unittest.TestCase):
         self.assertEqual(len(domain.attributes), 4)
         for i, var in enumerate(domain.attributes):
             self.assertIsInstance(var, ContinuousVariable)
-            self.assertEqual(var.name, "Feature {}".format(i + 1))
+            self.assertEqual(var.name, f"Feature {i + 1}")
         np.testing.assert_almost_equal(table.X,
                                        np.array([[0.1, 0.5, 0.1, 21],
                                                  [0.2, 0.1, 2.5, 123],

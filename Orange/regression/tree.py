@@ -163,17 +163,16 @@ class TreeLearner(Learner):
                 for attr in data.domain.attributes):
             # No fallback in the script; widgets can prevent this error
             # by providing a fallback and issue a warning about doing so
-            raise ValueError("Exhaustive binarization does not handle "
-                             "attributes with more than {} values".
-                             format(self.MAX_BINARIZATION))
+            raise ValueError(
+                f"Exhaustive binarization does not handle attributes with more than {self.MAX_BINARIZATION} values"
+            )
 
         active_inst = np.nonzero(~np.isnan(data.Y))[0].astype(np.int32)
         root = self._build_tree(data, active_inst)
         if root is None:
             root = Node(None, 0, np.array([0., 0.]))
         root.subset = active_inst
-        model = TreeModel(data, root)
-        return model
+        return TreeModel(data, root)
 
 
 class SklTreeRegressor(SklModel, TreeModelInterface):

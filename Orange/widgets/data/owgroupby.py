@@ -54,7 +54,7 @@ def concatenate(x):
     Concatenate values of series if value is not missing (nan or empty string
     for StringVariable)
     """
-    return " ".join(str(v) for v in x if not pd.isnull(v) and len(str(v)) > 0)
+    return " ".join(str(v) for v in x if not pd.isnull(v) and str(v) != "")
 
 
 def std(s):
@@ -228,14 +228,13 @@ class VarTableModel(QAbstractTableModel):
         if role in (Qt.DisplayRole, Qt.EditRole):
             if col == TabColumn.attribute:
                 return str(val)
-            else:  # col == TabColumn.aggregations
-                # plot first two aggregations comma separated and write n more
-                # for others
-                aggs = sorted(
-                    self.parent.aggregations.get(val, []), key=AGGREGATIONS_ORD.index
-                )
-                n_more = "" if len(aggs) <= 3 else f" and {len(aggs) - 3} more"
-                return ", ".join(aggs[:3]) + n_more
+            # plot first two aggregations comma separated and write n more
+            # for others
+            aggs = sorted(
+                self.parent.aggregations.get(val, []), key=AGGREGATIONS_ORD.index
+            )
+            n_more = "" if len(aggs) <= 3 else f" and {len(aggs) - 3} more"
+            return ", ".join(aggs[:3]) + n_more
         elif role == Qt.DecorationRole and col == TabColumn.attribute:
             return gui.attributeIconDict[val]
         return None
@@ -292,7 +291,7 @@ class CheckBox(QCheckBox):
         else:
             agg = self.text()
             selected_attrs = self.parent.get_selected_attributes()
-            types = set(type(attr) for attr in selected_attrs)
+            types = {type(attr) for attr in selected_attrs}
             can_be_applied_all = types <= AGGREGATIONS[agg].types
 
             # true if aggregation applied to all attributes that can be
@@ -485,8 +484,11 @@ class OWGroupBy(OWWidget, ConcurrentWidgetMixin):
         self.openContext(self.data)
 
         # restore aggregations
-        self.aggregations.update({k: v for k, v in default_aggregations.items()
-                                  if k not in self.aggregations})
+        self.aggregations |= {
+            k: v
+            for k, v in default_aggregations.items()
+            if k not in self.aggregations
+        }
 
         # update selections in widgets and re-plot
         self.agg_table_model.set_domain(data.domain if data else None)
@@ -547,9 +549,8 @@ class OWGroupBy(OWWidget, ConcurrentWidgetMixin):
         This function removes Sum from the context for TimeVariables (104)
         """
         for var_, v in context.values["aggregations"][0].items():
-            if len(var_) == 2:
-                if var_[1] == 104:
-                    v.discard("Sum")
+            if len(var_) == 2 and var_[1] == 104:
+                v.discard("Sum")
 
 
 if __name__ == "__main__":

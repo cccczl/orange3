@@ -125,12 +125,13 @@ class OWContinuize(widget.OWWidget):
                 button.setEnabled(True)
 
     def constructContinuizer(self):
-        conzer = DomainContinuizer(
-            multinomial_treatment=self.multinomial_treats[self.multinomial_treatment][1],
+        return DomainContinuizer(
+            multinomial_treatment=self.multinomial_treats[
+                self.multinomial_treatment
+            ][1],
             continuous_treatment=self.continuous_treatment,
-            class_treatment=self.class_treats[self.class_treatment][1]
+            class_treatment=self.class_treats[self.class_treatment][1],
         )
-        return conzer
 
     @gui.deferred
     def commit(self):
@@ -190,8 +191,7 @@ def make_indicator_var(source, value_ind, weight=None):
     else:
         indicator = WeightedIndicator(source, value=value_ind, weight=weight)
     return Orange.data.ContinuousVariable(
-        "{}={}".format(source.name, source.values[value_ind]),
-        compute_value=indicator
+        f"{source.name}={source.values[value_ind]}", compute_value=indicator
     )
 
 
@@ -380,12 +380,12 @@ class DomainContinuizer(Reprable):
                 any(var.is_discrete and len(var.values) > 2 for var in domain)):
             raise ValueError("Domain has multinomial attributes")
 
-        newdomain = continuize_domain(
+        return continuize_domain(
             data,
             self.multinomial_treatment,
             self.continuous_treatment,
-            self.class_treatment)
-        return newdomain
+            self.class_treatment,
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover

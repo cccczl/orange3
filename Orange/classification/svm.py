@@ -51,4 +51,4 @@ if __name__ == '__main__':
     learners = [SVMLearner(), NuSVMLearner(), LinearSVMLearner()]
     res = CrossValidation()(data_, learners)
     for l, ca in zip(learners, CA()(res)):
-        print("learner: {}\nCA: {}\n".format(l, ca))
+        print(f"learner: {l}\nCA: {ca}\n")

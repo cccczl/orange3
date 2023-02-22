@@ -140,8 +140,10 @@ class TestDomainInit(unittest.TestCase):
         d = Domain.from_numpy(np.zeros((1, 3)), np.zeros((1, 1)),
                               np.zeros((1, 100)))
         self.assertTrue(d.anonymous)
-        self.assertEqual([var.name for var in d.attributes],
-                         ["Feature {}".format(i) for i in range(1, 4)])
+        self.assertEqual(
+            [var.name for var in d.attributes],
+            [f"Feature {i}" for i in range(1, 4)],
+        )
         self.assertEqual(d.class_var.name, "Target")
         self.assertEqual([var.name for var in d.metas],
                          ["Meta {:03}".format(i) for i in range(1, 101)])
@@ -170,7 +172,7 @@ class TestDomainInit(unittest.TestCase):
             self.assertTrue(d.anonymous)
             self.assertIsInstance(d.class_var, vartype)
             if isinstance(vartype, DiscreteVariable):
-                self.assertEqual(d.class_var.values, ["v{}".format(i) for i in range(1, 3)])
+                self.assertEqual(d.class_var.values, [f"v{i}" for i in range(1, 3)])
 
     def test_wrong_vartypes(self):
         attributes = (age, gender, income)

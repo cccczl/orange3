@@ -952,7 +952,7 @@ class TestMahalanobis(TestCase):
         metric = MahalanobisDistance(self.x)
         self.assertEqual(metric(self.x[0], self.x[1]).shape, (1, 1))
         self.assertEqual(metric(self.x).shape, (self.n, self.n))
-        self.assertEqual(metric(self.x[0:3], self.x[5:7]).shape, (3, 2))
+        self.assertEqual(metric(self.x[:3], self.x[5:7]).shape, (3, 2))
         self.assertEqual(metric(self.x1, self.x2).shape, (1, 1))
         metric(self.x, impute=True)
         metric(self.x[:-1, :])

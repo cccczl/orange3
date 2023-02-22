@@ -141,7 +141,7 @@ class TestSameValueSql(unittest.TestCase, dbt):
     @dbt.run_on(["postgres"])
     def test_on_continuous_attribute_negated(self):
         filtered_data = filter.SameValue(0, 1, negate=True)(self.table)
-        correct_data = [row for row in self.data if not row[0] == 1]
+        correct_data = [row for row in self.data if row[0] != 1]
 
         self.assertEqual(len(filtered_data), len(correct_data))
         self.assertSequenceEqual(filtered_data, correct_data)
@@ -173,7 +173,7 @@ class TestSameValueSql(unittest.TestCase, dbt):
     @dbt.run_on(["postgres", "mssql"])
     def test_on_discrete_attribute_negated(self):
         filtered_data = filter.SameValue(3, 'a', negate=True)(self.table)
-        correct_data = [row for row in self.data if not row[3] == 'a']
+        correct_data = [row for row in self.data if row[3] != 'a']
 
         self.assertEqual(len(filtered_data), len(correct_data))
         self.assertSequenceEqual(filtered_data, correct_data)
@@ -182,7 +182,7 @@ class TestSameValueSql(unittest.TestCase, dbt):
     def test_on_discrete_attribute_value_passed_as_int(self):
         values = self.table.domain[3].values
         filtered_data = filter.SameValue(3, 0, negate=True)(self.table)
-        correct_data = [row for row in self.data if not row[3] == values[0]]
+        correct_data = [row for row in self.data if row[3] != values[0]]
 
         self.assertEqual(len(filtered_data), len(correct_data))
         self.assertSequenceEqual(filtered_data, correct_data)
@@ -191,7 +191,7 @@ class TestSameValueSql(unittest.TestCase, dbt):
     def test_on_discrete_attribute_value_passed_as_float(self):
         values = self.table.domain[3].values
         filtered_data = filter.SameValue(3, 0., negate=True)(self.table)
-        correct_data = [row for row in self.data if not row[3] == values[0]]
+        correct_data = [row for row in self.data if row[3] != values[0]]
 
         self.assertEqual(len(filtered_data), len(correct_data))
         self.assertSequenceEqual(filtered_data, correct_data)

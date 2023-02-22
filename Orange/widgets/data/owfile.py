@@ -65,9 +65,7 @@ class NamedURLModel(PyListModel):
 
     def data(self, index, role=Qt.DisplayRole):
         data = super().data(index, role)
-        if role == Qt.DisplayRole:
-            return self.mapping.get(data, data)
-        return data
+        return self.mapping.get(data, data) if role == Qt.DisplayRole else data
 
     def add_name(self, url, name):
         self.mapping[url] = name
@@ -177,9 +175,8 @@ class OWFile(widget.OWWidget, RecentPathsWComboMixin):
             def package(w):
                 package = w.qualified_name().split(".")[:-1]
                 package = package[:2]
-                if ".".join(package) == "Orange.data":
-                    return ["0"]  # force "Orange" to come first
-                return package
+                return ["0"] if ".".join(package) == "Orange.data" else package
+
             return package(w), w.DESCRIPTION
 
         self.available_readers = sorted(set(readers),
@@ -304,7 +301,7 @@ class OWFile(widget.OWWidget, RecentPathsWComboMixin):
         if self.source == self.LOCAL_FILE:
             last_path = self.last_path()
             if last_path and os.path.exists(last_path) and \
-                    os.path.getsize(last_path) > self.SIZE_LIMIT:
+                        os.path.getsize(last_path) > self.SIZE_LIMIT:
                 self.Warning.file_too_big()
                 return
 
@@ -334,14 +331,13 @@ class OWFile(widget.OWWidget, RecentPathsWComboMixin):
             path = self.recent_paths[0]
             if n == 0:  # default
                 path.file_format = None
-                self.load_data()
             elif n <= len(self.available_readers):
                 reader = self.available_readers[n - 1]
                 path.file_format = reader.qualified_name()
-                self.load_data()
             else:  # the rest include just qualified names
                 path.file_format = self.reader_combo.itemText(n)
-                self.load_data()
+
+            self.load_data()
 
     def _url_set(self):
         index = self.url_combo.currentIndex()
@@ -349,7 +345,7 @@ class OWFile(widget.OWWidget, RecentPathsWComboMixin):
         url = url.strip()
 
         if not urlparse(url).scheme:
-            url = 'http://' + url
+            url = f'http://{url}'
             self.url_combo.setItemText(index, url)
 
         if index != 0:
@@ -392,8 +388,7 @@ class OWFile(widget.OWWidget, RecentPathsWComboMixin):
         self.clear_messages()
         self.set_file_list()
 
-        error = self._try_load()
-        if error:
+        if error := self._try_load():
             error()
             self.data = None
             self.sheet_box.hide()
@@ -513,10 +508,7 @@ class OWFile(widget.OWWidget, RecentPathsWComboMixin):
     @staticmethod
     def _describe(table):
         def missing_prop(prop):
-            if prop:
-                return f"({prop * 100:.1f}% missing values)"
-            else:
-                return "(no missing values)"
+            return f"({prop * 100:.1f}% missing values)" if prop else "(no missing values)"
 
         domain = table.domain
         text = ""
@@ -542,12 +534,12 @@ class OWFile(widget.OWWidget, RecentPathsWComboMixin):
         elif domain.has_discrete_class:
             nvals = len(domain.class_var.values)
             text += "<br/>Classification; categorical class " \
-                f"with {nvals} {pl(nvals, 'value')} {missing_in_class}"
+                    f"with {nvals} {pl(nvals, 'value')} {missing_in_class}"
         elif table.domain.class_vars:
             ntargets = len(table.domain.class_vars)
             text += "<br/>Multi-target; " \
-                f"{ntargets} target {pl(ntargets, 'variable')} " \
-                f"{missing_in_class}"
+                    f"{ntargets} target {pl(ntargets, 'variable')} " \
+                    f"{missing_in_class}"
         else:
             text += "<br/>Data has no target variable."
         nmetas = len(domain.metas)
@@ -557,7 +549,7 @@ class OWFile(widget.OWWidget, RecentPathsWComboMixin):
         if 'Timestamp' in table.domain:
             # Google Forms uses this header to timestamp responses
             text += f"<p>First entry: {table[0, 'Timestamp']}<br/>" \
-                f"Last entry: {table[-1, 'Timestamp']}</p>"
+                    f"Last entry: {table[-1, 'Timestamp']}</p>"
         return text
 
     def storeSpecificSettings(self):
@@ -623,8 +615,9 @@ class OWFile(widget.OWWidget, RecentPathsWComboMixin):
             home = os.path.expanduser("~")
             if self.loaded_file.startswith(home):
                 # os.path.join does not like ~
-                name = "~" + os.path.sep + \
-                       self.loaded_file[len(home):].lstrip("/").lstrip("\\")
+                name = f"~{os.path.sep}" + self.loaded_file[len(home) :].lstrip(
+                    "/"
+                ).lstrip("\\")
             else:
                 name = self.loaded_file
             if self.sheet_combo.isVisible():
@@ -640,8 +633,7 @@ class OWFile(widget.OWWidget, RecentPathsWComboMixin):
     @staticmethod
     def dragEnterEvent(event):
         """Accept drops of valid file urls"""
-        urls = event.mimeData().urls()
-        if urls:
+        if urls := event.mimeData().urls():
             try:
                 FileFormat.get_reader(urls[0].toLocalFile())
                 event.acceptProposedAction()
@@ -650,8 +642,7 @@ class OWFile(widget.OWWidget, RecentPathsWComboMixin):
 
     def dropEvent(self, event):
         """Handle file drops"""
-        urls = event.mimeData().urls()
-        if urls:
+        if urls := event.mimeData().urls():
             self.add_path(urls[0].toLocalFile())  # add first file
             self.source = self.LOCAL_FILE
             self.load_data()
@@ -669,29 +660,27 @@ class OWFileDropHandler(SingleUrlDropHandler):
     WIDGET = OWFile
 
     def canDropUrl(self, url: QUrl) -> bool:
-        if url.isLocalFile():
-            try:
-                FileFormat.get_reader(url.toLocalFile())
-                return True
-            except Exception:  # noqa # pylint:disable=broad-except
-                return False
-        else:
+        if not url.isLocalFile():
             return url.scheme().lower() in ("http", "https", "ftp")
+        try:
+            FileFormat.get_reader(url.toLocalFile())
+            return True
+        except Exception:  # noqa # pylint:disable=broad-except
+            return False
 
     def parametersFromUrl(self, url: QUrl) -> Dict[str, Any]:
-        if url.isLocalFile():
-            path = url.toLocalFile()
-            r = RecentPath(os.path.abspath(path), None, None,
-                           os.path.basename(path))
-            return {
-                "recent_paths": stored_recent_paths_prepend(self.WIDGET, r),
-                "source": OWFile.LOCAL_FILE,
-            }
-        else:
+        if not url.isLocalFile():
             return {
                 "recent_urls": [url.toString()],
                 "source": OWFile.URL,
             }
+        path = url.toLocalFile()
+        r = RecentPath(os.path.abspath(path), None, None,
+                       os.path.basename(path))
+        return {
+            "recent_paths": stored_recent_paths_prepend(self.WIDGET, r),
+            "source": OWFile.LOCAL_FILE,
+        }
 
 
 if __name__ == "__main__":  # pragma: no cover

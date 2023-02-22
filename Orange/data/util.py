@@ -230,9 +230,9 @@ def get_unique_names(names, proposed, equal_numbers=True):
     indices = {name: get_indices(names, name) for name in proposed}
     indices = {name: max(ind) + 1 for name, ind in indices.items() if ind}
 
-    duplicated_proposed = {name for name, count in Counter(proposed).items()
-                           if count > 1}
-    if duplicated_proposed:
+    if duplicated_proposed := {
+        name for name, count in Counter(proposed).items() if count > 1
+    }:
         # This could be merged with the code below, but it would make it slower
         # because it can't be done within list comprehension
         if equal_numbers:
@@ -240,8 +240,7 @@ def get_unique_names(names, proposed, equal_numbers=True):
             indices = {name: max_index
                        for name in chain(indices, duplicated_proposed)}
         else:
-            indices.update({name: 1
-                            for name in duplicated_proposed - set(indices)})
+            indices |= {name: 1 for name in duplicated_proposed - set(indices)}
         names = []
         for name in proposed:
             if name in indices:
@@ -251,15 +250,14 @@ def get_unique_names(names, proposed, equal_numbers=True):
                 names.append(name)
         return names
 
-    if not (set(proposed) & set(names) or indices):
+    if not set(proposed) & set(names) and not indices:
         return proposed
 
-    if equal_numbers:
-        max_index = max(indices.values())
-        return [f"{name} ({max_index})" for name in proposed]
-    else:
+    if not equal_numbers:
         return [f"{name} ({indices[name]})" if name in indices else name
                 for name in proposed]
+    max_index = max(indices.values())
+    return [f"{name} ({max_index})" for name in proposed]
 
 
 def get_unique_names_duplicates(proposed: list, return_duplicated=False) -> list:
@@ -275,9 +273,7 @@ def get_unique_names_duplicates(proposed: list, return_duplicated=False) -> list
                if name and cnt > 1}
     new_names = [f"{name} ({next(indices[name])})" if name in indices else name
                  for name in proposed]
-    if return_duplicated:
-        return new_names, list(indices)
-    return new_names
+    return (new_names, list(indices)) if return_duplicated else new_names
 
 
 def get_unique_names_domain(attributes, class_vars=(), metas=()):
@@ -321,7 +317,7 @@ def sanitized_name(name: str) -> str:
     """
     sanitized = re.sub(r"\W", "_", name)
     if sanitized[0].isdigit():
-        sanitized = "_" + sanitized
+        sanitized = f"_{sanitized}"
     return sanitized
 
 

@@ -110,6 +110,8 @@ class ContinuousVariableEditor(VariableEditor):
         sp_edit = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         sp_edit.setHorizontalStretch(1)
 
+
+
         class DoubleSpinBox(QDoubleSpinBox):
             def sizeHint(self) -> QSize:
                 size: QSize = super().sizeHint()
@@ -122,9 +124,8 @@ class ContinuousVariableEditor(VariableEditor):
                 return state, text, pos
 
             def textFromValue(self, value):
-                if not np.isfinite(value):
-                    return "?"
-                return super().textFromValue(value)
+                return super().textFromValue(value) if np.isfinite(value) else "?"
+
 
         self._spin = DoubleSpinBox(
             parent,

@@ -110,8 +110,7 @@ class OWDataInfo(widget.OWWidget):
 
     @staticmethod
     def _p_size(data, exact=False):
-        exact = exact or SqlTable is None or not isinstance(data, SqlTable)
-        if exact:
+        if exact := exact or SqlTable is None or not isinstance(data, SqlTable):
             n = len(data)
             desc = f"{n} {pl(n, 'row')}"
         else:
@@ -120,10 +119,15 @@ class OWDataInfo(widget.OWWidget):
         ncols = len(data.domain.variables) + len(data.domain.metas)
         desc += f", {ncols} {pl(ncols, 'column')}"
 
-        sparseness = [s for s, m in (("features", data.X_density),
-                                     ("meta attributes", data.metas_density),
-                                     ("targets", data.Y_density)) if m() > 1]
-        if sparseness:
+        if sparseness := [
+            s
+            for s, m in (
+                ("features", data.X_density),
+                ("meta attributes", data.metas_density),
+                ("targets", data.Y_density),
+            )
+            if m() > 1
+        ]:
             desc += "; sparse {', '.join(sparseness)}"
         return desc
 
@@ -135,9 +139,8 @@ class OWDataInfo(widget.OWWidget):
         if class_var := data.domain.class_var:
             if class_var.is_continuous:
                 return "numeric target variable"
-            else:
-                nclasses = len(class_var.values)
-                return "categorical outcome with " \
+            nclasses = len(class_var.values)
+            return "categorical outcome with " \
                        f"{nclasses} {pl(nclasses, 'class|classes')}"
         if class_vars := data.domain.class_vars:
             disc_class = self._count(class_vars, DiscreteVariable)
@@ -146,7 +149,7 @@ class OWDataInfo(widget.OWWidget):
                 return f"{disc_class} categorical {pl(disc_class, 'target')}"
             elif not disc_class:
                 return f"{cont_class} numeric {pl(cont_class, 'target')}"
-            return "multi-target data,<br/>" + self._pack_var_counts(class_vars)
+            return f"multi-target data,<br/>{self._pack_var_counts(class_vars)}"
 
     @classmethod
     def _p_metas(cls, data):

@@ -1,6 +1,7 @@
 """
 Support for example tables wrapping data stored on a PostgreSQL server.
 """
+
 import functools
 import logging
 import threading
@@ -20,7 +21,7 @@ LARGE_TABLE = 100000
 AUTO_DL_LIMIT = 10000
 DEFAULT_SAMPLE_TIME = 1
 sql_log = logging.getLogger('sql_log')
-sql_log.debug("Logging started: {}".format(strftime("%Y-%m-%d %H:%M:%S")))
+sql_log.debug(f'Logging started: {strftime("%Y-%m-%d %H:%M:%S")}')
 
 
 class SqlTable(Table):
@@ -86,7 +87,7 @@ class SqlTable(Table):
             if isinstance(table_or_sql, TableDesc):
                 table = table_or_sql.sql
             elif "select" in table_or_sql.lower():
-                table = "(%s) as my_table" % table_or_sql.strip("; ")
+                table = f'({table_or_sql.strip("; ")}) as my_table'
             else:
                 table = self.backend.quote_identifier(table_or_sql)
             self.table_name = table
@@ -110,15 +111,12 @@ class SqlTable(Table):
             var = self.backend.create_variable(field_name, field_metadata,
                                                type_hints, inspect_table)
 
-            if var.is_string:
+            if not var.is_string and var in type_hints.class_vars:
+                class_vars.append(var)
+            elif not var.is_string and var in type_hints.metas or var.is_string:
                 metas.append(var)
             else:
-                if var in type_hints.class_vars:
-                    class_vars.append(var)
-                elif var in type_hints.metas:
-                    metas.append(var)
-                else:
-                    attrs.append(var)
+                attrs.append(var)
 
         return Domain(attrs, class_vars, metas)
 
@@ -154,7 +152,7 @@ class SqlTable(Table):
             except TypeError:
                 pass
 
-        elif not (row_idx is Ellipsis or row_idx == slice(None)):
+        elif row_idx is not Ellipsis and row_idx != slice(None):
             # TODO if row_idx specify multiple rows, one of the following must
             # happen
             #  - the new table remembers which rows are selected (implement
@@ -174,11 +172,10 @@ class SqlTable(Table):
     def _fetch_row(self, row_index):
         attributes = self.domain.variables + self.domain.metas
         rows = [row_index]
-        values = list(self._query(attributes, rows=rows))
-        if not values:
-            raise IndexError('Could not retrieve row {} from table {}'.format(
-                row_index, self.name))
-        return Instance(self.domain, values[0])
+        if values := list(self._query(attributes, rows=rows)):
+            return Instance(self.domain, values[0])
+        else:
+            raise IndexError(f'Could not retrieve row {row_index} from table {self.name}')
 
     def __iter__(self):
         """ Iterating through the rows executes the query using a cursor and
@@ -194,8 +191,8 @@ class SqlTable(Table):
             fields = []
             for attr in attributes:
                 assert hasattr(attr, 'to_sql'), \
-                    "Cannot use ordinary attributes with sql backend"
-                field_str = '(%s) AS "%s"' % (attr.to_sql(), attr.name)
+                        "Cannot use ordinary attributes with sql backend"
+                field_str = f'({attr.to_sql()}) AS "{attr.name}"'
                 fields.append(field_str)
             if not fields:
                 raise ValueError("No fields selected.")
@@ -370,7 +367,7 @@ class SqlTable(Table):
             results = cur.fetchone()
         stats = []
         i = 0
-        for ci, (field_name, continuous) in enumerate(columns):
+        for field_name, continuous in columns:
             if continuous:
                 stats.append(results[i:i+6])
                 i += 6
@@ -393,11 +390,13 @@ class SqlTable(Table):
         dists = []
         for col in columns:
             field_name = col.to_sql()
-            fields = field_name, "COUNT(%s)" % field_name
-            query = self._sql_query(fields,
-                                    filters=['%s IS NOT NULL' % field_name],
-                                    group_by=[field_name],
-                                    order_by=[field_name])
+            fields = field_name, f"COUNT({field_name})"
+            query = self._sql_query(
+                fields,
+                filters=[f'{field_name} IS NOT NULL'],
+                group_by=[field_name],
+                order_by=[field_name],
+            )
             with self.backend.execute_sql_query(query) as cur:
                 dist = np.array(cur.fetchall())
             if col.is_continuous:
@@ -434,21 +433,20 @@ class SqlTable(Table):
         all_contingencies = [None] * len(columns)
         for i, column in enumerate(columns):
             column_field = column.to_sql()
-            fields = [row_field, column_field, "COUNT(%s)" % column_field]
+            fields = [row_field, column_field, f"COUNT({column_field})"]
             group_by = [row_field, column_field]
             order_by = [column_field]
-            filters = ['%s IS NOT NULL' % f
-                       for f in (row_field, column_field)]
+            filters = [f'{f} IS NOT NULL' for f in (row_field, column_field)]
             query = self._sql_query(fields, filters=filters,
                                     group_by=group_by, order_by=order_by)
             with self.backend.execute_sql_query(query) as cur:
                 data = list(cur.fetchall())
                 if column.is_continuous:
                     all_contingencies[i] = \
-                        (self._continuous_contingencies(data, row), [], [], 0)
+                            (self._continuous_contingencies(data, row), [], [], 0)
                 else:
                     all_contingencies[i] =\
-                        (self._discrete_contingencies(data, row, column), [],
+                            (self._discrete_contingencies(data, row, column), [],
                          [], 0)
         return all_contingencies
 
@@ -458,13 +456,11 @@ class SqlTable(Table):
         last = None
         i = -1
         for row_value, column_value, count in data:
-            if column_value == last:
-                counts[row.to_val(row_value), i] += count
-            else:
+            if column_value != last:
                 i += 1
                 last = column_value
                 values[i] = column_value
-                counts[row.to_val(row_value), i] += count
+            counts[row.to_val(row_value), i] += count
         return (values, counts)
 
     def _discrete_contingencies(self, data, row, column):
@@ -506,12 +502,10 @@ class SqlTable(Table):
             pass
         elif var.is_discrete:
             value = var.to_val(value)
-            value = "'%s'" % var.repr_val(value)
-        else:
-            pass
+            value = f"'{var.repr_val(value)}'"
         t2 = self.copy()
         t2.row_filters += \
-            (sql_filter.SameValueSql(var.to_sql(), value, negate),)
+                (sql_filter.SameValueSql(var.to_sql(), value, negate),)
         return t2
 
     def _filter_values(self, f):
@@ -522,8 +516,7 @@ class SqlTable(Table):
                 if cond.values is None:
                     values = None
                 else:
-                    values = ["'%s'" % var.repr_val(var.to_val(v))
-                              for v in cond.values]
+                    values = [f"'{var.repr_val(var.to_val(v))}'" for v in cond.values]
                 new_condition = sql_filter.FilterDiscreteSql(
                     column=var.to_sql(),
                     values=values)
@@ -547,7 +540,7 @@ class SqlTable(Table):
                     values=cond.values,
                     case_sensitive=cond.case_sensitive)
             else:
-                raise ValueError('Invalid condition %s' % type(cond))
+                raise ValueError(f'Invalid condition {type(cond)}')
             conditions.append(new_condition)
         t2 = self.copy()
         t2.row_filters += (sql_filter.ValuesSql(conditions=conditions,
@@ -606,25 +599,19 @@ class SqlTable(Table):
         parameter = str(parameter)
         if "." in self.table_name:
             schema, name = self.table_name.split(".")
-            sample_name = '__%s_%s_%s' % (
-                self.backend.unquote_identifier(name),
-                method,
-                parameter.replace('.', '_').replace('-', '_'))
+            sample_name = f"__{self.backend.unquote_identifier(name)}_{method}_{parameter.replace('.', '_').replace('-', '_')}"
             sample_table_q = ".".join([schema, self.backend.quote_identifier(sample_name)])
         else:
-            sample_table = '__%s_%s_%s' % (
-                self.backend.unquote_identifier(self.table_name),
-                method,
-                parameter.replace('.', '_').replace('-', '_'))
+            sample_table = f"__{self.backend.unquote_identifier(self.table_name)}_{method}_{parameter.replace('.', '_').replace('-', '_')}"
             sample_table_q = self.backend.quote_identifier(sample_table)
         create = False
         try:
-            query = "SELECT * FROM " + sample_table_q + " LIMIT 0;"
+            query = f"SELECT * FROM {sample_table_q} LIMIT 0;"
             with self.backend.execute_sql_query(query):
                 pass
 
             if no_cache:
-                query = "DROP TABLE " + sample_table_q
+                query = f"DROP TABLE {sample_table_q}"
                 with self.backend.execute_sql_query(query):
                     pass
                 create = True

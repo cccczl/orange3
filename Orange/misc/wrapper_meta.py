@@ -47,8 +47,7 @@ A wrapper for `${sklname}`. The following is its documentation:
 
 ${skldoc}
             """
-            sklname = "{}.{}".format(inspect.getmodule(wrapped).__name__,
-                                     wrapped.__name__)
+            sklname = f"{inspect.getmodule(wrapped).__name__}.{wrapped.__name__}"
             skldoc = inspect.getdoc(wrapped) or ''
             # FIXME: make sure skl-extended classes are API-compatible
             if "Attributes\n---------" in skldoc:

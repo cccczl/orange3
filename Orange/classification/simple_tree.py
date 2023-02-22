@@ -102,7 +102,7 @@ class SimpleTreeModel(Model):
         self.cls_vars = list(data.domain.class_vars)
         if len(data.domain.class_vars) != 1:
             n_cls = len(data.domain.class_vars)
-            raise ValueError("Number of classes should be 1: {}".format(n_cls))
+            raise ValueError(f"Number of classes should be 1: {n_cls}")
 
         if data.domain.has_discrete_class:
             self.type = Classification
@@ -121,8 +121,7 @@ class SimpleTreeModel(Model):
         elif learner.skip_prob == 'log2':
             skip_prob = 1.0 - np.log2(X.shape[1]) / X.shape[1]
         else:
-            raise ValueError(
-                "skip_prob not valid: {}".format(learner.skip_prob))
+            raise ValueError(f"skip_prob not valid: {learner.skip_prob}")
 
         attr_vals = []
         domain = []
@@ -240,12 +239,10 @@ class SimpleTreeModel(Model):
             if n.type == ContinuousNode:
                 xs.append('{:.5f}'.format(n.split))
         elif self.type == Classification:
-            for i in range(self.cls_vals):
-                xs.append('{:.2f}'.format(n.dist[i]))
+            xs.extend('{:.2f}'.format(n.dist[i]) for i in range(self.cls_vals))
         else:
             xs.append('{:.5f} {:.5f}'.format(n.n, n.sum))
-        for i in range(n.children_size):
-            xs.append(self.dumps_tree(n.children[i]))
+        xs.extend(self.dumps_tree(n.children[i]) for i in range(n.children_size))
         xs.append('}')
         return ' '.join(xs)
 
@@ -277,17 +274,16 @@ class SimpleTreeModel(Model):
             format_str = format_leaf = format_node = None
         else:
             format_str = f"({self.domain.class_var.format_str}: %s)"
-            format_leaf = " --> " + format_str
-            format_node = "%s " + format_str
+            format_leaf = f" --> {format_str}"
+            format_node = f"%s {format_str}"
         if n.children_size == 0:
-            if self.type == Classification:
-                node_cont = [round(n.dist[i], 1)
-                             for i in range(self.cls_vals)]
-                index = node_cont.index(max(node_cont))
-                major_class = self.cls_vars[0].values[index]
-                return ' --> %s (%s)' % (major_class, node_cont)
-            else:
+            if self.type != Classification:
                 return format_leaf % (n.sum / n.n, n.n)
+            node_cont = [round(n.dist[i], 1)
+                         for i in range(self.cls_vals)]
+            index = node_cont.index(max(node_cont))
+            major_class = self.cls_vars[0].values[index]
+            return f' --> {major_class} ({node_cont})'
         else:
             attr = self.dom_attr[n.split_attr]
             node_desc = attr.name
@@ -295,15 +291,15 @@ class SimpleTreeModel(Model):
             if self.type == Classification:
                 node_cont = [round(n.dist[i], 1)
                              for i in range(self.cls_vals)]
-                ret_str = indent + '%s (%s)' % (node_desc, node_cont)
+                ret_str = f'{indent}{node_desc} ({node_cont})'
             else:
                 ret_str = indent + format_node % (node_desc, n.sum / n.n, n.n)
             for i in range(n.children_size):
                 if attr.is_continuous:
                     split = '<=' if i % 2 == 0 else '>'
                     split += attr.format_str % n.split
-                    ret_str += indent + ': %s' % split
+                    ret_str += f'{indent}: {split}'
                 else:
-                    ret_str += indent + ': %s' % attr.values[i]
+                    ret_str += f'{indent}: {attr.values[i]}'
                 ret_str += self.to_string(n.children[i], level + 1)
             return ret_str

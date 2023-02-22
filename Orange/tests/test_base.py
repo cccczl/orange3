@@ -74,7 +74,7 @@ class TestLearner(unittest.TestCase):
     def test_preprocessors_can_be_passed_in_as_generator(self):
         """Since we support iterables, we should support generators as well"""
         pp = (Discretize(),)
-        learner = DummyLearnerPP(p for p in pp)
+        learner = DummyLearnerPP(iter(pp))
         self.assertEqual(
             tuple(learner.active_preprocessors), pp,
             'Preprocessors should be able to be passed in as single object '

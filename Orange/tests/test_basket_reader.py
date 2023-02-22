@@ -52,7 +52,7 @@ class TestBasketReader(unittest.TestCase):
     def test_handles_spaces_between_variables(self, fname):
         table = read_basket(fname)
         self.assertEqual(len(table.domain.variables), 3)
-        self.assertEqual(set(x for x in table[0]), {1, 2, 3})
+        self.assertEqual(set(table[0]), {1, 2, 3})
 
     @with_file("""a=1, b=2\na=1, b=4""")
     def test_variables_can_be_listed_in_any_order(self, fname):

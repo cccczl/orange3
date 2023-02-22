@@ -37,9 +37,8 @@ class Fitter(Learner):
 
         if type(self).fit is Learner.fit:
             return learner.fit_storage(data)
-        else:
-            X, Y, W = data.X, data.Y, data.W if data.has_weights() else None
-            return learner.fit(X, Y, W)
+        X, Y, W = data.X, data.Y, data.W if data.has_weights() else None
+        return learner.fit(X, Y, W)
 
     def preprocess(self, data, progress_callback=None):
         return self.get_learner(data).preprocess(data, progress_callback)
@@ -72,7 +71,7 @@ class Fitter(Learner):
                             None)
         # Prevent trying to access the learner when problem type is None
         if problem_type not in self.__fits__:
-            raise TypeError("No learner to handle '{}'".format(problem_type))
+            raise TypeError(f"No learner to handle '{problem_type}'")
         if self.__learners[problem_type] is None:
             learner = self.__fits__[problem_type](**self.__kwargs(problem_type))
             learner.use_default_preprocessors = self.use_default_preprocessors

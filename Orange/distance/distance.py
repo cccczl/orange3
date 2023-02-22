@@ -116,10 +116,7 @@ class EuclideanRowsModel(FittedDistanceModel):
 
             # adapted from sklearn.metric.euclidean_distances
             xx = row_norms(data1, squared=True)[:, np.newaxis]
-            if x2 is not None:
-                yy = row_norms(data2, squared=True)[np.newaxis, :]
-            else:
-                yy = xx.T
+            yy = row_norms(data2, squared=True)[np.newaxis, :] if x2 is not None else xx.T
             distances = _safe_sparse_dot(data1, data2.T, dense_output=True,
                                          callback=callbacks.next())
             distances *= -2
@@ -130,7 +127,7 @@ class EuclideanRowsModel(FittedDistanceModel):
             if x2 is None:
                 distances.flat[::distances.shape[0] + 1] = 0.0
             fixer = _distance.fix_euclidean_rows_normalized if self.normalize \
-                else _distance.fix_euclidean_rows
+                    else _distance.fix_euclidean_rows
             fixer(distances, data1, data2,
                   self.means, self.vars, self.dist_missing2_cont,
                   x2 is not None, callbacks.next())
@@ -534,8 +531,7 @@ class JaccardModel(FittedDistanceModel):
             callback(i * 100 / n)
             xi_ind = set(x1[i].indices)
             for j in range(i if symmetric else m):
-                union = len(xi_ind.union(x2[j].indices))
-                if union:
+                if union := len(xi_ind.union(x2[j].indices)):
                     jacc = 1 - len(xi_ind.intersection(x2[j].indices)) / union
                 else:
                     jacc = 0
@@ -581,15 +577,9 @@ class CorrelationDistanceModel(DistanceModel):
     def compute_distances(self, x1, x2):
         rho = self.compute_correlation(x1, x2)
         if self.similarity:
-            if self.absolute:
-                return np.abs(rho)
-            else:
-                return rho
+            return np.abs(rho) if self.absolute else rho
         else:
-            if self.absolute:
-                return 1. - np.abs(rho)
-            else:
-                return 0.5 - rho / 2
+            return 1. - np.abs(rho) if self.absolute else 0.5 - rho / 2
 
     def compute_correlation(self, x1, x2):
         raise NotImplementedError()
@@ -597,22 +587,21 @@ class CorrelationDistanceModel(DistanceModel):
 
 class SpearmanModel(CorrelationDistanceModel):
     def compute_correlation(self, x1, x2):
-        if x2 is None:
-            n1 = x1.shape[1 - self.axis]
-            if n1 == 1:
-                rho = 1.0
-            elif n1 == 2:
-                # Special case to properly fill degenerate self correlations
-                # (nan, inf on the diagonals)
-                rho = stats.spearmanr(x1, x1, axis=self.axis)[0]
-                assert rho.shape == (4, 4)
-                rho = rho[:2, :2].copy()
-            else:
-                # scalar if n1 == 1
-                rho = stats.spearmanr(x1, axis=self.axis)[0]
-            return np.atleast_2d(rho)
-        else:
+        if x2 is not None:
             return _spearmanr2(x1, x2, axis=self.axis)
+        n1 = x1.shape[1 - self.axis]
+        if n1 == 1:
+            rho = 1.0
+        elif n1 == 2:
+            # Special case to properly fill degenerate self correlations
+            # (nan, inf on the diagonals)
+            rho = stats.spearmanr(x1, x1, axis=self.axis)[0]
+            assert rho.shape == (4, 4)
+            rho = rho[:2, :2].copy()
+        else:
+            # scalar if n1 == 1
+            rho = stats.spearmanr(x1, axis=self.axis)[0]
+        return np.atleast_2d(rho)
 
 
 def _spearmanr2(a, b, axis=0):
@@ -677,7 +666,7 @@ def _corrcoef2(a, b, axis=0):
     """
     a, b = np.atleast_2d(a, b)
     if axis not in (0, 1):
-        raise ValueError("Invalid axis {} (only 0 or 1 accepted)".format(axis))
+        raise ValueError(f"Invalid axis {axis} (only 0 or 1 accepted)")
 
     mean_a = np.mean(a, axis=axis, keepdims=True)
     mean_b = np.mean(b, axis=axis, keepdims=True)
@@ -731,11 +720,10 @@ class SpearmanRAbsolute(CorrelationDistance):
 
 class PearsonModel(CorrelationDistanceModel):
     def compute_correlation(self, x1, x2):
-        if x2 is None:
-            c = np.corrcoef(x1, rowvar=self.axis == 1)
-            return np.atleast_2d(c)
-        else:
+        if x2 is not None:
             return _corrcoef2(x1, x2, axis=self.axis)
+        c = np.corrcoef(x1, rowvar=self.axis == 1)
+        return np.atleast_2d(c)
 
 
 class PearsonR(CorrelationDistance):
@@ -850,9 +838,7 @@ class MahalanobisDistance:
     is provided in this class.
     """
     def __new__(cls, data=None, axis=1, _='Mahalanobis'):
-        if data is None:
-            return cls
-        return Mahalanobis(axis=axis).fit(data)
+        return cls if data is None else Mahalanobis(axis=axis).fit(data)
 
 
 class Hamming(Distance):

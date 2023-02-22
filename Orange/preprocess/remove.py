@@ -214,16 +214,14 @@ def has_at_least_two_values(data, var):
 
 
 def remove_constant(var, data):
-    if var.is_continuous:
-        if not has_at_least_two_values(data, var):
-            return None
-        else:
-            return var
-    elif var.is_discrete:
-        if len(var.values) < 2:
-            return None
-        else:
-            return var
+    if (
+        var.is_continuous
+        and not has_at_least_two_values(data, var)
+        or not var.is_continuous
+        and var.is_discrete
+        and len(var.values) < 2
+    ):
+        return None
     else:
         return var
 

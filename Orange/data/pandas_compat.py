@@ -64,7 +64,7 @@ class OrangeDataFrame(pd.DataFrame):
             data = table.metas
             vars_ = table.domain.metas
 
-        index = ['_o' + str(id_) for id_ in table.ids]
+        index = [f'_o{str(id_)}' for id_ in table.ids]
         varsdict = {var._name: var for var in vars_}
         columns = varsdict.keys()
 
@@ -364,7 +364,7 @@ def table_from_frames(xdf, ydf, mdf):
     ydf = ydf.reset_index(drop=True)
     dfs = xdf, ydf, mdf
 
-    if not all(df.shape[0] == xdf.shape[0] for df in dfs):
+    if any(df.shape[0] != xdf.shape[0] for df in dfs):
         raise ValueError(f"Leading dimension mismatch "
                          f"(not {xdf.shape[0]} == {ydf.shape[0]} == {mdf.shape[0]})")
 
@@ -389,7 +389,7 @@ def table_from_frames(xdf, ydf, mdf):
             W = [df.orange_weights[i] for i in df.index if i in df.orange_weights]
             if len(W) != len(df.index):
                 W = None
-            attributes.update(df.orange_attributes)
+            attributes |= df.orange_attributes
         else:
             W = None
 

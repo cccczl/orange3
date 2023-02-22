@@ -47,7 +47,7 @@ def _count_nans_per_row_sparse(X, weights, dtype=None):
         X = type(X)((np.isnan(X.data), X.indices, X.indptr), X.shape)
         return np.asarray(X.sum(axis=1), dtype=dtype).ravel()
     else:  # pragma: no cover
-        raise TypeError("unsupported type '{}'".format(type(X).__name__))
+        raise TypeError(f"unsupported type '{type(X).__name__}'")
 
 
 def sparse_count_implicit_zeros(x):
@@ -69,20 +69,19 @@ def sparse_implicit_zero_weights(x, weights):
     if not sp.issparse(x):
         raise TypeError('The matrix provided was not sparse.')
 
-    if weights.ndim == 1:
-        # Match weights and x axis so `indices` will be set appropriately
-        if x.shape[0] == weights.shape[0]:
-            x = x.tocsc()
-        elif x.shape[1] == weights.shape[0]:
-            x = x.tocsr()
-        n_items = np.prod(x.shape)
-        zero_indices = np.setdiff1d(np.arange(n_items), x.indices, assume_unique=True)
-        return weights[zero_indices]
-    else:
+    if weights.ndim != 1:
         # Can easily be implemented using a coo_matrix
         raise NotImplementedError(
             'Computing zero weights on ndimensinal weight matrix is not implemented'
         )
+    # Match weights and x axis so `indices` will be set appropriately
+    if x.shape[0] == weights.shape[0]:
+        x = x.tocsc()
+    elif x.shape[1] == weights.shape[0]:
+        x = x.tocsr()
+    n_items = np.prod(x.shape)
+    zero_indices = np.setdiff1d(np.arange(n_items), x.indices, assume_unique=True)
+    return weights[zero_indices]
 
 
 def bincount(x, weights=None, max_val=None, minlength=0):
@@ -159,11 +158,10 @@ def bincount(x, weights=None, max_val=None, minlength=0):
     # Since `csr_matrix.values` only contain non-zero values or explicit
     # zeros, we must count implicit zeros separately and add them to the
     # explicit ones found before
-    if sp.issparse(x_original):
-        # If x contains only NaNs, then bc will be an empty array
-        if zero_weights and bc.size == 0:
+    if sp.issparse(x_original) and zero_weights:
+        if bc.size == 0:
             bc = [zero_weights]
-        elif zero_weights:
+        else:
             bc[0] += zero_weights
 
     return bc, nans
@@ -479,34 +477,33 @@ def nan_mean_var(x, axis=None, weights=None):
     if axis is None:
         raise NotImplementedError("axis=None is not supported")
 
-    if not sp.issparse(x):
-        if weights is None:
-            means = bn.nanmean(x, axis=axis)
-            variances = bn.nanvar(x, axis=axis)
-        else:
-            if axis == 0:
-                weights = weights.reshape(-1, 1)
-            elif axis == 1:
-                weights = weights.reshape(1, -1)
-            else:
-                raise NotImplementedError
-
-            nanw = ~np.isnan(x) * weights  # do not divide by non-used weights
-            wsum = np.sum(nanw, axis=axis)
-            means = bn.nansum(x * weights, axis=axis) / wsum
-
-            if axis == 0:
-                mr = means.reshape(1, -1)
-            elif axis == 1:
-                mr = means.reshape(-1, 1)
-
-            variances = bn.nansum(((x - mr) ** 2) * weights, axis=axis) / wsum
-    else:
+    if sp.issparse(x):
         # mean_variance_axis is picky regarding the input type
         if weights is not None:
             weights = weights.astype(float)
         means, variances = mean_variance_axis(x, axis=axis, weights=weights)
 
+    elif weights is None:
+        means = bn.nanmean(x, axis=axis)
+        variances = bn.nanvar(x, axis=axis)
+    else:
+        if axis == 0:
+            weights = weights.reshape(-1, 1)
+        elif axis == 1:
+            weights = weights.reshape(1, -1)
+        else:
+            raise NotImplementedError
+
+        nanw = ~np.isnan(x) * weights  # do not divide by non-used weights
+        wsum = np.sum(nanw, axis=axis)
+        means = bn.nansum(x * weights, axis=axis) / wsum
+
+        if axis == 0:
+            mr = means.reshape(1, -1)
+        elif axis == 1:
+            mr = means.reshape(-1, 1)
+
+        variances = bn.nansum(((x - mr) ** 2) * weights, axis=axis) / wsum
     return means, variances
 
 
@@ -533,13 +530,7 @@ def nanmedian(x, axis=None):
         n_nan = sum(np.isnan(x.data))
         n_nonzero = sum(x.data[nz] != 0)
         n_zeros = np.prod(x.shape) - n_nonzero - n_nan
-        if n_zeros > n_nonzero:
-            # Typical case if use of sparse matrices make sense
-            return 0
-        else:
-            # Possibly contains NaNs and
-            # more nz values than zeros, so allocating memory should not be too problematic
-            return np.nanmedian(x.toarray())
+        return 0 if n_zeros > n_nonzero else np.nanmedian(x.toarray())
 
     return _apply_func(x, np.nanmedian, nanmedian_sparse, axis=axis)
 
@@ -770,9 +761,9 @@ def FDR(p_values: Iterable, dependent=False, m=None, ordered=False) -> Iterable:
         m = len(p_values)
     if not ordered:
         ordered = (np.diff(p_values) >= 0).all()
-        if not ordered:
-            indices = np.argsort(p_values)
-            p_values = p_values[indices]
+    if not ordered:
+        indices = np.argsort(p_values)
+        p_values = p_values[indices]
 
     if dependent:  # correct q for dependent tests
         m *= sum(1 / np.arange(1, m + 1))
@@ -781,4 +772,4 @@ def FDR(p_values: Iterable, dependent=False, m=None, ordered=False) -> Iterable:
     fdrs = np.array(np.minimum.accumulate(fdrs)[::-1])
     if not ordered:
         fdrs[indices] = fdrs.copy()
-    return fdrs if not is_list else list(fdrs)
+    return list(fdrs) if is_list else fdrs

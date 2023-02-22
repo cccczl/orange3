@@ -43,18 +43,60 @@ class TestCurves(unittest.TestCase):
                       13, 12, 11, 10, 11, 10]) / 19)
 
         precision = np.array(
-            [9 / 19, 9 / 18, 8 / 17, 8 / 16, 7 / 15, 7 / 14, 7 / 13,
-             7 / 12, 6 / 11, 6 / 10, 5 / 9, 5 / 8, 4 / 7, 4 / 6,
-             4 / 5, 3 / 4, 2 / 3, 1 / 2, 1 / 1, 1])
+            [
+                9 / 19,
+                9 / 18,
+                8 / 17,
+                8 / 16,
+                7 / 15,
+                7 / 14,
+                7 / 13,
+                7 / 12,
+                6 / 11,
+                6 / 10,
+                5 / 9,
+                5 / 8,
+                4 / 7,
+                4 / 6,
+                4 / 5,
+                3 / 4,
+                2 / 3,
+                1 / 2,
+                1,
+                1,
+            ]
+        )
         np.testing.assert_almost_equal(curves.precision(), precision)
         np.testing.assert_almost_equal(curves.recall(), tp / 9)
 
         np.testing.assert_almost_equal(curves.ppv(), precision)
         np.testing.assert_almost_equal(
             curves.npv(),
-            np.array([1, 1 / 1, 1 / 2, 2 / 3, 2 / 4, 3 / 5, 4 / 6, 5 / 7,
-                      5 / 8, 6 / 9, 6 / 10, 7 / 11, 7 / 12, 8 / 13, 9 / 14,
-                      9 / 15, 9 / 16, 9 / 17, 10 / 18, 10 / 19]))
+            np.array(
+                [
+                    1,
+                    1,
+                    1 / 2,
+                    2 / 3,
+                    2 / 4,
+                    3 / 5,
+                    4 / 6,
+                    5 / 7,
+                    5 / 8,
+                    6 / 9,
+                    6 / 10,
+                    7 / 11,
+                    7 / 12,
+                    8 / 13,
+                    9 / 14,
+                    9 / 15,
+                    9 / 16,
+                    9 / 17,
+                    10 / 18,
+                    10 / 19,
+                ]
+            ),
+        )
 
         np.testing.assert_almost_equal(curves.tpr(), tp / 9)
         np.testing.assert_almost_equal(curves.fpr(), (10 - tn) / 10)

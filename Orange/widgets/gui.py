@@ -187,10 +187,7 @@ class ListViewWithSizeHint(QListView):
 
 def listView(widget, master, value=None, model=None, box=None, callback=None,
              sizeHint=None, *, viewType=ListViewWithSizeHint, **misc):
-    if box:
-        bg = vBox(widget, box, addToLayout=False)
-    else:
-        bg = widget
+    bg = vBox(widget, box, addToLayout=False) if box else widget
     view = viewType(preferred_size=sizeHint)
     if isinstance(view.model(), QSortFilterProxyModel):
         view.model().setSourceModel(model)
@@ -244,10 +241,7 @@ def listBox(widget, master, value=None, labels=None, box=None, callback=None,
     :type sizeHint: QSize
     :rtype: OrangeListBox
     """
-    if box:
-        bg = hBox(widget, box, addToLayout=False)
-    else:
-        bg = widget
+    bg = hBox(widget, box, addToLayout=False) if box else widget
     lb = OrangeListBox(master, enableDragDrop, dragDropCallback,
                        dataValidityCallback, sizeHint, bg)
     lb.setSelectionMode(selectionMode)
@@ -327,10 +321,7 @@ class OrangeListBox(QtWidgets.QListWidget):
         super().__init__(*args)
         self.drop_callback = dragDropCallback
         self.valid_data_callback = dataValidityCallback
-        if not sizeHint:
-            self.size_hint = QtCore.QSize(150, 100)
-        else:
-            self.size_hint = sizeHint
+        self.size_hint = sizeHint or QtCore.QSize(150, 100)
         if enableDragDrop:
             self.setDragEnabled(True)
             self.setAcceptDrops(True)
@@ -399,10 +390,7 @@ class ControlledList(list):
         # commonly used as a setting which gets synced into a GLOBAL
         # SettingsHandler and which keeps the OWWidget instance alive via a
         # reference in listBox (see gui.listBox)
-        if listBox is not None:
-            self.listBox = weakref.ref(listBox)
-        else:
-            self.listBox = lambda: None
+        self.listBox = weakref.ref(listBox) if listBox is not None else (lambda: None)
 
     def __reduce__(self):
         # cannot pickle self.listBox, but can't discard it
@@ -413,10 +401,7 @@ class ControlledList(list):
     # TODO ControllgedList.item2name is probably never used
     def item2name(self, item):
         item = self.listBox().labels[item]
-        if isinstance(item, tuple):
-            return item[1]
-        else:
-            return item
+        return item[1] if isinstance(item, tuple) else item
 
     def __setitem__(self, index, item):
         def unselect(i):
@@ -502,8 +487,7 @@ class CallBackListView(ControlledCallback):
         selection = self.view.selectionModel().selection()
         if isinstance(self.view.model(), QSortFilterProxyModel):
             selection = self.view.model().mapSelectionToSource(selection)
-        values = [i.row() for i in selection.indexes()]
-        if values:
+        if values := [i.row() for i in selection.indexes()]:
             # FIXME: irrespective of PyListModel check, this might/should always
             # callback with values!
             if isinstance(self.model, PyListModel):
@@ -572,18 +556,19 @@ class CallFrontListView(ControlledCallFront):
 
 class CallFrontListBox(ControlledCallFront):
     def action(self, value):
-        if value is not None:
-            if isinstance(value, int):
-                for i in range(self.control.count()):
-                    self.control.item(i).setSelected(i == value)
-            else:
-                if not isinstance(value, ControlledList):
-                    setattr(self.control.ogMaster, self.control.ogValue,
-                            ControlledList(value, self.control))
-                for i in range(self.control.count()):
-                    shouldBe = i in value
-                    if shouldBe != self.control.item(i).isSelected():
-                        self.control.item(i).setSelected(shouldBe)
+        if value is None:
+            return
+        if isinstance(value, int):
+            for i in range(self.control.count()):
+                self.control.item(i).setSelected(i == value)
+        else:
+            if not isinstance(value, ControlledList):
+                setattr(self.control.ogMaster, self.control.ogValue,
+                        ControlledList(value, self.control))
+            for i in range(self.control.count()):
+                shouldBe = i in value
+                if shouldBe != self.control.item(i).isSelected():
+                    self.control.item(i).setSelected(shouldBe)
 
 
 class CallFrontListBoxLabels(ControlledCallFront):

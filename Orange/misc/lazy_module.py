@@ -5,7 +5,7 @@ class _LazyModule:
     def _do_import(self):
         import Orange
         from importlib import import_module
-        mod = import_module('Orange.' + self.__name, package='Orange')
+        mod = import_module(f'Orange.{self.__name}', package='Orange')
         setattr(Orange, self.__name, mod)
         return mod
 

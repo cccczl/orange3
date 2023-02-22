@@ -142,8 +142,7 @@ def graph_silhouette(X, y, xlim=None, colors=None, figsize=None, filename=None):
     s = s[np.argsort(y)]  # Sort by clusters
     parts = []
     # Within clusters sort by silhouette scores
-    for label, (i, j) in enumerate([(sum(y == c1), sum(y == c1) + sum(y == c2))
-                                    for c1, c2 in zip(range(-1, N-1), range(0, N))]):
+    for label, (i, j) in enumerate((sum(y == c1), sum(y == c1) + sum(y == c2)) for c1, c2 in zip(range(-1, N-1), range(N))):
         scores = sorted(s[i:j])
         parts.append((scores, label))
 

@@ -41,8 +41,7 @@ class TestInstance(unittest.TestCase):
         meta_vars = [DiscreteVariable(name=m, values=map(str, range(5)))
                      if isinstance(m, str) else m
                      for m in metas]
-        domain = Domain(attr_vars, class_vars, meta_vars)
-        return domain
+        return Domain(attr_vars, class_vars, meta_vars)
 
     def test_init_x_no_data(self):
         domain = self.mock_domain()
@@ -265,8 +264,8 @@ class TestInstance(unittest.TestCase):
             attr.number_of_decimals = 0
         self.assertEqual(
             str(inst),
-            "[{}]".format(", ".join("{}".format(x)
-                                    for x in range(len(self.attributes)))))
+            "[{}]".format(", ".join(f"{x}" for x in range(len(self.attributes)))),
+        )
 
     def test_repr(self):
         domain = self.create_domain(self.attributes)

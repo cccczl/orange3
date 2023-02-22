@@ -22,10 +22,11 @@ def _get_variable(dat, variable, expected_type=None, expected_name=""):
         failed = True
     if failed or (expected_type is not None and not isinstance(variable, expected_type)):
         if isinstance(variable, data.Variable):
-            raise ValueError("expected %s variable not %s" % (expected_name, variable))
+            raise ValueError(f"expected {expected_name} variable not {variable}")
         else:
-            raise ValueError("expected %s, not '%s'" % (
-                expected_type.__name__, type(variable).__name__))
+            raise ValueError(
+                f"expected {expected_type.__name__}, not '{type(variable).__name__}'"
+            )
     return variable
 
 
@@ -276,7 +277,7 @@ class Continuous(Distribution):
             col = data[:, variable]
             dtype = col.dtype
             if data.has_weights():
-                if not "float" in dtype.name and "float" in col.dtype.name:
+                if "float" not in dtype.name and "float" in col.dtype.name:
                     dtype = col.dtype.name
                 dist = np.empty((2, len(col)), dtype=dtype)
                 dist[0, :] = col
@@ -350,7 +351,7 @@ def get_distribution(dat, variable, unknowns=None):
     elif variable.is_continuous:
         return Continuous(dat, variable, unknowns)
     else:
-        raise TypeError("cannot compute distribution of '%s'" % type(variable).__name__)
+        raise TypeError(f"cannot compute distribution of '{type(variable).__name__}'")
 
 
 def get_distributions(dat, skipDiscrete=False, skipContinuous=False):
@@ -368,9 +369,10 @@ def get_distributions(dat, skipDiscrete=False, skipContinuous=False):
         dist_unks = dat._compute_distributions(columns)
         if columns is None:
             columns = np.arange(len(vars))
-        distributions = []
-        for col, (dist, unks) in zip(columns, dist_unks):
-            distributions.append(get_distribution(dist, vars[col], unks))
+        distributions = [
+            get_distribution(dist, vars[col], unks)
+            for col, (dist, unks) in zip(columns, dist_unks)
+        ]
     except NotImplementedError:
         if columns is None:
             columns = np.arange(len(vars))

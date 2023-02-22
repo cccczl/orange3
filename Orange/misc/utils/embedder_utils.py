@@ -68,9 +68,7 @@ class EmbedderCache:
         self.save_pickle(self._cache_dict, self._cache_file_path)
 
     def get_cached_result_or_none(self, cache_key):
-        if cache_key in self._cache_dict:
-            return self._cache_dict[cache_key]
-        return None
+        return self._cache_dict[cache_key] if cache_key in self._cache_dict else None
 
     def add(self, cache_key, value):
         self._cache_dict[cache_key] = value
@@ -87,11 +85,7 @@ def get_proxies() -> Optional[Dict[str, str]]:
         they not set.
     """
     def add_scheme(url: Optional[str]) -> Optional[str]:
-        if url is not None and "://" not in url:
-            # if no scheme default to http - as other libraries do (e.g. requests)
-            return f"http://{url}"
-        else:
-            return url
+        return f"http://{url}" if url is not None and "://" not in url else url
 
     http_proxy = add_scheme(environ.get("http_proxy"))
     https_proxy = add_scheme(environ.get("https_proxy"))
@@ -100,4 +94,4 @@ def get_proxies() -> Optional[Dict[str, str]]:
         proxy_dict["http://"] = http_proxy
     if https_proxy:
         proxy_dict["https://"] = https_proxy
-    return proxy_dict if proxy_dict else None
+    return proxy_dict or None

@@ -43,8 +43,8 @@ class ScoreMetaType(WrapperMeta):
             cls.registry = {}
         return cls
 
-    def __init__(cls, *args, **_):
-        WrapperMeta.__init__(cls, *args)
+    def __init__(self, *args, **_):
+        WrapperMeta.__init__(self, *args)
 
 
 class Score(metaclass=ScoreMetaType):
@@ -86,14 +86,12 @@ class Score(metaclass=ScoreMetaType):
         return self.compute_score(results, **kwargs)
 
     def average(self, scores):
-        if self.is_scalar:
-            return np.mean(scores, axis=0)
-        return NotImplementedError
+        return np.mean(scores, axis=0) if self.is_scalar else NotImplementedError
 
     def scores_by_folds(self, results, **kwargs):
         nfolds = len(results.folds)
-        nmodels = len(results.predicted)
         if self.is_scalar:
+            nmodels = len(results.predicted)
             scores = np.empty((nfolds, nmodels), dtype=np.float64)
         else:
             scores = [None] * nfolds
@@ -103,8 +101,7 @@ class Score(metaclass=ScoreMetaType):
         return scores
 
     def compute_score(self, results):
-        wraps = type(self).__wraps__  # self.__wraps__ is invisible
-        if wraps:
+        if wraps := type(self).__wraps__:
             return self.from_predicted(results, wraps)
         else:
             return NotImplementedError
@@ -347,25 +344,24 @@ class Specificity(ClassificationScore):
         return np.sum(scores.T * weights, axis=1)
 
     def compute_score(self, results, target=None, average="binary"):
+        if target is not None:
+            return self.single_class_specificity(results, target)
         domain = results.domain
         n_classes = len(domain.class_var.values)
 
-        if target is None:
-            if average == "weighted":
-                return self.multi_class_specificity(results)
-            elif average == "binary":  # average is binary
-                if n_classes != 2:
-                    raise ValueError(
-                        "Binary averaging needs two classes in data: "
-                        "specify target class or use "
-                        "weighted averaging.")
-                return self.single_class_specificity(results, 1)
-            else:
+        if average == "weighted":
+            return self.multi_class_specificity(results)
+        elif average == "binary":  # average is binary
+            if n_classes != 2:
                 raise ValueError(
-                    "Wrong parameters: For averaging select one of the "
-                    "following values: ('weighted', 'binary')")
-        elif target is not None:
-            return self.single_class_specificity(results, target)
+                    "Binary averaging needs two classes in data: "
+                    "specify target class or use "
+                    "weighted averaging.")
+            return self.single_class_specificity(results, 1)
+        else:
+            raise ValueError(
+                "Wrong parameters: For averaging select one of the "
+                "following values: ('weighted', 'binary')")
 
 
 class MatthewsCorrCoefficient(ClassificationScore):
