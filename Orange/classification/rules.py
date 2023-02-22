@@ -108,8 +108,7 @@ def likelihood_ratio_statistic(x, y):
     x[x == 0] = 1e-5
     y[y == 0] = 1e-5
     y *= x.sum() / y.sum()
-    lrs = 2 * (x * np.log(x/y)).sum()
-    return lrs
+    return 2 * (x * np.log(x/y)).sum()
 
 
 def get_dist(Y, W, domain):
@@ -208,14 +207,12 @@ class WeightedRelativeAccuracyEvaluator(Evaluator):
         dist_sum, p_dist_sum = dist.sum(), p_dist.sum()
         d_modus = argmaxrnd(dist)
 
+        p_cond = dist_sum / p_dist_sum
         if tc is not None:
-            p_cond = dist_sum / p_dist_sum
             # p_cond = dist[tc] / p_dist[tc]
             p_true_positive = dist[tc] / dist_sum
             p_class = p_dist[tc] / p_dist_sum
         else:
-            # generality of the rule
-            p_cond = dist_sum / p_dist_sum
             # true positives of class c
             p_true_positive = dist[d_modus] / dist_sum
             # prior probability of class c
@@ -554,11 +551,7 @@ class TopDownSearchStrategy(SearchStrategy):
                     s2 = Selector(column=i, op=">=", value=val)
                     possible_selectors.extend([s1, s2])
 
-        # remove redundant selectors
-        possible_selectors = [smh for smh in possible_selectors if
-                              smh not in existing_selectors]
-
-        return possible_selectors
+        return [smh for smh in possible_selectors if smh not in existing_selectors]
 
     @staticmethod
     def discretize(X, Y, W, domain):
@@ -784,10 +777,10 @@ class Rule:
         return len(self.selectors)
 
     def __str__(self):
-        attributes = self.domain.attributes
         class_var = self.domain.class_var
 
         if self.selectors:
+            attributes = self.domain.attributes
             cond = " AND ".join([attributes[s.column].name + s.op +
                                  (str(attributes[s.column].values[int(s.value)])
                                   if attributes[s.column].is_discrete
@@ -797,10 +790,11 @@ class Rule:
 
         # it is possible that prediction is not set yet - use _ for outcome
         outcome = (
-            (class_var.name + "=" + class_var.values[self.prediction])
-            if self.prediction is not None else "_"
+            f"{class_var.name}={class_var.values[self.prediction]}"
+            if self.prediction is not None
+            else "_"
         )
-        return "IF {} THEN {} ".format(cond, outcome)
+        return f"IF {cond} THEN {outcome} "
 
 
 class RuleHuntress:
@@ -1281,7 +1275,7 @@ class CN2Learner(_RuleLearner):
         Y = Y.astype(dtype=int)
         rule_list = self.find_rules(X, Y, W, None, self.base_rules, data.domain)
         # add the default rule, if required
-        if not rule_list or rule_list and rule_list[-1].length > 0:
+        if not rule_list or rule_list[-1].length > 0:
             rule_list.append(self.generate_default_rule(X, Y, W, data.domain))
         return CN2Classifier(domain=data.domain, rule_list=rule_list)
 

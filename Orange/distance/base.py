@@ -36,9 +36,14 @@ def remove_discrete_features(data, to_metas=False):
     new_domain = Domain(
         [a for a in data.domain.attributes if a.is_continuous],
         data.domain.class_vars,
-        data.domain.metas
-        + (() if not to_metas
-           else tuple(a for a in data.domain.attributes if not a.is_continuous))
+        (
+            data.domain.metas
+            + (
+                tuple(a for a in data.domain.attributes if not a.is_continuous)
+                if to_metas
+                else ()
+            )
+        ),
     )
     return data.transform(new_domain)
 
@@ -558,8 +563,8 @@ class SklDistance:
             x1, x2, metric=self.metric)
         if impute and np.isnan(dist).any():
             dist = np.nan_to_num(dist)
-        if isinstance(e1, (Table, RowInstance)):
-            dist_matrix = DistMatrix(dist, e1, e2, axis)
-        else:
-            dist_matrix = DistMatrix(dist)
-        return dist_matrix
+        return (
+            DistMatrix(dist, e1, e2, axis)
+            if isinstance(e1, (Table, RowInstance))
+            else DistMatrix(dist)
+        )

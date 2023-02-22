@@ -43,11 +43,11 @@ class Psycopg2Backend(Backend):
     def _create_extensions(self):
         for ext in EXTENSIONS:
             try:
-                query = "CREATE EXTENSION IF NOT EXISTS {}".format(ext)
+                query = f"CREATE EXTENSION IF NOT EXISTS {ext}"
                 with self.execute_sql_query(query):
                     pass
             except BackendError:
-                warnings.warn("Database is missing extension {}".format(ext))
+                warnings.warn(f"Database is missing extension {ext}")
                 self.missing_extension.append(ext)
 
     def create_sql_query(self, table_name, fields, filters=(),
@@ -88,17 +88,14 @@ class Psycopg2Backend(Backend):
             self.connection_pool.putconn(connection)
 
     def quote_identifier(self, name):
-        return '"%s"' % name
+        return f'"{name}"'
 
     def unquote_identifier(self, quoted_name):
-        if quoted_name.startswith('"'):
-            return quoted_name[1:len(quoted_name) - 1]
-        else:
-            return quoted_name
+        return quoted_name[1:-1] if quoted_name.startswith('"') else quoted_name
 
     def list_tables_query(self, schema=None):
         if schema:
-            schema_clause = "AND n.nspname = '{}'".format(schema)
+            schema_clause = f"AND n.nspname = '{schema}'"
         else:
             schema_clause = "AND pg_catalog.pg_table_is_visible(c.oid)"
         return """SELECT n.nspname as "Schema",
@@ -124,14 +121,11 @@ class Psycopg2Backend(Backend):
         field_name_q = self.quote_identifier(field_name)
         if var.is_continuous:
             if isinstance(var, TimeVariable):
-                var.to_sql = ToSql("extract(epoch from {})"
-                                   .format(field_name_q))
+                var.to_sql = ToSql(f"extract(epoch from {field_name_q})")
             else:
-                var.to_sql = ToSql("({})::double precision"
-                                   .format(field_name_q))
+                var.to_sql = ToSql(f"({field_name_q})::double precision")
         else:  # discrete or string
-            var.to_sql = ToSql("({})::text"
-                               .format(field_name_q))
+            var.to_sql = ToSql(f"({field_name_q})::text")
         return var
 
     def _guess_variable(self, field_name, field_metadata, inspect_table):
@@ -156,26 +150,22 @@ class Psycopg2Backend(Backend):
 
         if type_code in INT_TYPES:  # bigint, int, smallint
             if inspect_table:
-                values = self.get_distinct_values(field_name, inspect_table)
-                if values:
+                if values := self.get_distinct_values(field_name, inspect_table):
                     return DiscreteVariable.make(field_name, values)
             return ContinuousVariable.make(field_name)
 
         if type_code in BOOLEAN_TYPES:
             return DiscreteVariable.make(field_name, ['false', 'true'])
 
-        if type_code in CHAR_TYPES:
-            if inspect_table:
-                values = self.get_distinct_values(field_name, inspect_table)
-                # remove trailing spaces
-                values = [v.rstrip() for v in values]
-                if values:
-                    return DiscreteVariable.make(field_name, values)
+        if type_code in CHAR_TYPES and inspect_table:
+            values = self.get_distinct_values(field_name, inspect_table)
+            if values := [v.rstrip() for v in values]:
+                return DiscreteVariable.make(field_name, values)
 
         return StringVariable.make(field_name)
 
     def count_approx(self, query):
-        sql = "EXPLAIN " + query
+        sql = f"EXPLAIN {query}"
         with self.execute_sql_query(sql) as cur:
             s = ''.join(row[0] for row in cur.fetchall())
         return int(re.findall(r'rows=(\d*)', s)[0])

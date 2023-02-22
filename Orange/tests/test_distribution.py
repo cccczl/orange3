@@ -381,7 +381,7 @@ class TestContinuousDistribution(unittest.TestCase):
 
         disc = distribution.Continuous(d, "petal length")
         ans = set()
-        for i in range(1000):
+        for _ in range(1000):
             v = disc.sample()
             self.assertIn(v, self.freqs)
             ans.add(v)

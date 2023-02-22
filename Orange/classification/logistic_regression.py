@@ -47,10 +47,7 @@ class LogisticRegressionLearner(SklLearner, _FeatureScorerMixin):
         # l1 penalty.
         solver, penalty = params.pop("solver"), params.get("penalty")
         if solver == "auto":
-            if penalty == "l1":
-                solver = "liblinear"
-            else:
-                solver = "lbfgs"
+            solver = "liblinear" if penalty == "l1" else "lbfgs"
         params["solver"] = solver
 
         return self.__wraps__(**params)

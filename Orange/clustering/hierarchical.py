@@ -131,14 +131,18 @@ class Tree(object):
         return isinstance(other, Tree) and tuple(self) == tuple(other)
 
     def __lt__(self, other):
-        if not isinstance(other, Tree):
-            return NotImplemented
-        return tuple(self) < tuple(other)
+        return (
+            tuple(self) < tuple(other)
+            if isinstance(other, Tree)
+            else NotImplemented
+        )
 
     def __le__(self, other):
-        if not isinstance(other, Tree):
-            return NotImplemented
-        return tuple(self) <= tuple(other)
+        return (
+            tuple(self) <= tuple(other)
+            if isinstance(other, Tree)
+            else NotImplemented
+        )
 
     def __getnewargs__(self):
         return tuple(self)
@@ -278,8 +282,7 @@ def postorder(tree, branches=attrgetter("branches")):
 
     while stack:
         current = stack.popleft()
-        children = branches(current)
-        if children:
+        if children := branches(current):
             # yield the item on the way up
             if current in visited:
                 yield current
@@ -299,8 +302,7 @@ def preorder(tree, branches=attrgetter("branches")):
     while stack:
         current = stack.popleft()
         yield current
-        children = branches(current)
-        if children:
+        if children := branches(current):
             stack.extendleft(reversed(children))
 
 
@@ -329,7 +331,7 @@ def prune(cluster, level=None, height=None, condition=None):
         be supplied.
 
     """
-    if not any(arg is not None for arg in [level, height, condition]):
+    if all(arg is None for arg in [level, height, condition]):
         raise ValueError("At least one pruning argument must be supplied")
 
     level_check = height_check = condition_check = lambda cl: False
@@ -351,10 +353,7 @@ def prune(cluster, level=None, height=None, condition=None):
 
     for node in postorder(cluster):
         if check_all(node):
-            if node.is_leaf:
-                T[node] = node
-            else:
-                T[node] = Tree(node.value, ())
+            T[node] = node if node.is_leaf else Tree(node.value, ())
         else:
             T[node] = Tree(node.value,
                            tuple(T[ch] for ch in node.branches))
@@ -369,11 +368,10 @@ def cluster_depths(cluster):
     :rtype: class:`dict`
 
     """
-    depths = {}
-    depths[cluster] = 0
+    depths = {cluster: 0}
     for cluster in preorder(cluster):
         cl_depth = depths[cluster]
-        depths.update(dict.fromkeys(cluster.branches, cl_depth + 1))
+        depths |= dict.fromkeys(cluster.branches, cl_depth + 1)
     return depths
 
 

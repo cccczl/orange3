@@ -217,8 +217,7 @@ class MergeDataContextHandler(ContextHandler):
         context = widget.current_context
         if context is None:
             return
-        pairs = context.values.get("attr_pairs")
-        if pairs:
+        if pairs := context.values.get("attr_pairs"):
             # attr_pairs is schema only setting which means it is not always
             # present. When not present leave widgets default.
             widget.attr_pairs = [
@@ -650,9 +649,7 @@ class OWMergeData(widget.OWWidget):
         def mig_value(x):
             if x == "Position (index)":
                 return INDEX
-            if x == "Source position (index)":
-                return INSTANCEID
-            return x
+            return INSTANCEID if x == "Source position (index)" else x
 
         if not version:
             operations = ("augment", "merge", "combine")
@@ -667,7 +664,7 @@ class OWMergeData(widget.OWWidget):
 
         if not version or version < 2 and "attr_pairs" in settings:
             data_exists, extra_exists, attr_pairs = settings.pop("attr_pairs")
-            if not (data_exists and extra_exists):
+            if not data_exists or not extra_exists:
                 settings["context_settings"] = []
                 return
 

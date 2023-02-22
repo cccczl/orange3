@@ -343,9 +343,7 @@ class OWCreateClass(widget.OWWidget):
             self.remove_buttons.append(button)
             self.rules_box.addWidget(button, n_lines, 0)
             self.counts.append([])
-            for coli, kwargs in enumerate(
-                    (dict(),
-                     dict(styleSheet="color: gray"))):
+            for coli, kwargs in enumerate(({}, dict(styleSheet="color: gray"))):
                 label = QLabel(alignment=Qt.AlignCenter, **kwargs)
                 self.counts[-1].append(label)
                 self.rules_box.addWidget(label, n_lines, 3 + coli)
@@ -401,8 +399,10 @@ class OWCreateClass(widget.OWWidget):
                          if re.match("^C\\d+", label)),
                         default=0)
         class_count = count(largest_c + 1)
-        return [label_edit.text() or "C{}".format(next(class_count))
-                for label_edit, _ in self.line_edits]
+        return [
+            label_edit.text() or f"C{next(class_count)}"
+            for label_edit, _ in self.line_edits
+        ]
 
     def update_counts(self):
         """Recompute and update the counts of matches."""

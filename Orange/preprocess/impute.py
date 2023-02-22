@@ -26,11 +26,10 @@ class ReplaceUnknowns(Transformation):
         self.value = value
 
     def transform(self, c):
-        if sp.issparse(c):
-            c.data = np.where(np.isnan(c.data), self.value, c.data)
-            return c
-        else:
+        if not sp.issparse(c):
             return np.where(np.isnan(c), self.value, c)
+        c.data = np.where(np.isnan(c.data), self.value, c.data)
+        return c
 
     def __eq__(self, other):
         return super().__eq__(other) and self.value == other.value
@@ -124,7 +123,7 @@ class ImputeSql(Reprable):
         self.default = default
 
     def __call__(self):
-        return 'coalesce(%s, %s)' % (self.var.to_sql(), str(self.default))
+        return f'coalesce({self.var.to_sql()}, {str(self.default)})'
 
 
 class Default(BaseImputeMethod):
@@ -223,7 +222,7 @@ class Model(BaseImputeMethod):
     format = BaseImputeMethod.format + " ({self.learner.name})"
     @property
     def name(self):
-        return "{} ({})".format(self._name, getattr(self.learner, 'name', ''))
+        return f"{self._name} ({getattr(self.learner, 'name', '')})"
 
     def __init__(self, learner):
         self.learner = learner
@@ -233,15 +232,13 @@ class Model(BaseImputeMethod):
         domain = domain_with_class_var(data.domain, variable)
 
         incompatibility_reason = self.learner.incompatibility_reason(domain)
-        if incompatibility_reason is None:
-            data = data.transform(domain)
-            model = self.learner(data)
-            assert model.domain.class_var == variable
-            return variable.copy(
-                compute_value=ReplaceUnknownsModel(variable, model))
-        else:
-            raise ValueError("`{}` doesn't support domain type"
-                             .format(self.learner.name))
+        if incompatibility_reason is not None:
+            raise ValueError(f"`{self.learner.name}` doesn't support domain type")
+        data = data.transform(domain)
+        model = self.learner(data)
+        assert model.domain.class_var == variable
+        return variable.copy(
+            compute_value=ReplaceUnknownsModel(variable, model))
 
     def copy(self):
         return Model(self.learner)
@@ -285,17 +282,16 @@ class AsValue(BaseImputeMethod):
         if variable.is_discrete:
             fmt = "{var.name}"
             value = "N/A"
-            var = Orange.data.DiscreteVariable(
+            return Orange.data.DiscreteVariable(
                 fmt.format(var=variable),
-                values=variable.values + (value, ),
+                values=variable.values + (value,),
                 compute_value=Lookup(
                     variable,
                     np.arange(len(variable.values), dtype=int),
-                    unknown=len(variable.values)),
+                    unknown=len(variable.values),
+                ),
                 sparse=variable.sparse,
-                )
-            return var
-
+            )
         elif variable.is_continuous:
             fmt = "{var.name}_def"
             indicator_var = Orange.data.DiscreteVariable(
@@ -347,10 +343,7 @@ class ReplaceUnknownsRandom(Transformation):
             self.sample_prob = np.ones_like(counts) / len(counts)
 
     def transform(self, c):
-        if not sp.issparse(c):
-            c = np.array(c, copy=True)
-        else:
-            c = c.toarray().ravel()
+        c = c.toarray().ravel() if sp.issparse(c) else np.array(c, copy=True)
         nanindices = np.flatnonzero(np.isnan(c))
 
         if self.variable.is_discrete:
@@ -383,12 +376,12 @@ class Random(BaseImputeMethod):
         # A distribution is invalid if a continuous variable's column does not
         # contain any known values or if a discrete variable's .values == []
         isinvalid = dist.size == 0
-        if isinvalid and variable.is_discrete:
-            assert len(variable.values) == 0
-            raise ValueError("'{}' has no values".format(variable))
-        elif isinvalid and variable.is_continuous:
-            raise ValueError("'{}' has an unknown distribution"
-                             .format(variable))
+        if isinvalid:
+            if variable.is_discrete:
+                assert len(variable.values) == 0
+                raise ValueError(f"'{variable}' has no values")
+            elif variable.is_continuous:
+                raise ValueError(f"'{variable}' has an unknown distribution")
 
         if variable.is_discrete and np.sum(dist) == 0:
             dist += 1 / len(dist)

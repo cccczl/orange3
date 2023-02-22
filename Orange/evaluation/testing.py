@@ -264,15 +264,13 @@ class Results:
         data = self.data[self.row_indices]
         domain = data.domain
         class_var = domain.class_var
-        classification = class_var and class_var.is_discrete
-
         new_meta_attr = []
         new_meta_vals = np.empty((len(data), 0))
         names = [var.name for var in chain(domain.attributes,
                                            domain.metas,
                                            domain.class_vars)]
 
-        if classification:
+        if classification := class_var and class_var.is_discrete:
             # predictions
             if include_predictions:
                 uniq_new, names = self.create_unique_vars(names, model_names, class_var.values)
@@ -409,10 +407,7 @@ class Validation:
         # Explicitly call __init__ because Python won't
         self.__init__(store_data=store_data, store_models=store_models,
                       **kwargs)
-        if test_data is not None:
-            test_data_kwargs = {"test_data": test_data}
-        else:
-            test_data_kwargs = {}
+        test_data_kwargs = {"test_data": test_data} if test_data is not None else {}
         return self(data, learners=learners, preprocessor=preprocessor,
                     callback=callback, **test_data_kwargs)
 

@@ -12,10 +12,12 @@ def single_cache(func):
     @wraps(func)
     def _cached(*args, **kwargs):
         nonlocal last_args, last_kwargs, last_result
-        if len(last_args) != len(args) or \
-                not all(x is y for x, y in zip(args, last_args)) or \
-                last_kwargs != set(kwargs) or \
-                any(last_kwargs[k] != kwargs[k] for k in last_kwargs):
+        if (
+            len(last_args) != len(args)
+            or any(x is not y for x, y in zip(args, last_args))
+            or last_kwargs != set(kwargs)
+            or any(last_kwargs[k] != kwargs[k] for k in last_kwargs)
+        ):
             last_result = func(*args, **kwargs)
             last_args, last_kwargs = args, kwargs
         return last_result

@@ -34,11 +34,9 @@ def data_info(name, location):
     }
 
 if __name__ == "__main__":
-    info = dict()
-
-    for name, location in external_datasets:
-        info[name] = data_info(name, location)
-
+    info = {
+        name: data_info(name, location) for name, location in external_datasets
+    }
     for fname in os.listdir('.'):
         if not os.path.isfile(fname):
             continue

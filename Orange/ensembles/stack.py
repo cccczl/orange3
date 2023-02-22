@@ -78,9 +78,10 @@ class StackedLearner(Learner):
         else:
             X = res.predicted.T
             use_prob = False
-        dom = Domain([ContinuousVariable('f{}'.format(i + 1))
-                      for i in range(X.shape[1])],
-                     data.domain.class_var)
+        dom = Domain(
+            [ContinuousVariable(f'f{i + 1}') for i in range(X.shape[1])],
+            data.domain.class_var,
+        )
         stacked_data = data.transform(dom).copy()
         with stacked_data.unlocked_reference():
             stacked_data.X = X

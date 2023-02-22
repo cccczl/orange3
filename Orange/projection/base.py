@@ -23,10 +23,13 @@ class LinearCombinationSql:
 
     def __call__(self):
         if self.mean is None:
-            return ' + '.join('{} * {}'.format(w, a.to_sql())
-                              for a, w in zip(self.attrs, self.weights))
-        return ' + '.join('{} * ({} - {})'.format(w, a.to_sql(), m, w)
-                          for a, m, w in zip(self.attrs, self.mean, self.weights))
+            return ' + '.join(
+                f'{w} * {a.to_sql()}' for a, w in zip(self.attrs, self.weights)
+            )
+        return ' + '.join(
+            f'{w} * ({a.to_sql()} - {m})'
+            for a, m, w in zip(self.attrs, self.mean, self.weights)
+        )
 
 
 class Projector(ReprableWithPreprocessors):
@@ -195,18 +198,14 @@ class SklProjector(Projector, metaclass=WrapperMeta):
 
     def _get_sklparams(self, values):
         sklprojection = self.__wraps__
-        if sklprojection is not None:
-            spec = list(
-                inspect.signature(sklprojection.__init__).parameters.keys()
-            )
-            # first argument is 'self'
-            assert spec[0] == "self"
-            params = {
-                name: values[name] for name in spec[1:] if name in values
-            }
-        else:
+        if sklprojection is None:
             raise TypeError("Wrapper does not define '__wraps__'")
-        return params
+        spec = list(
+            inspect.signature(sklprojection.__init__).parameters.keys()
+        )
+        # first argument is 'self'
+        assert spec[0] == "self"
+        return {name: values[name] for name in spec[1:] if name in values}
 
     def preprocess(self, data):
         data = super().preprocess(data)

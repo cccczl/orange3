@@ -36,12 +36,11 @@ DISCRETE_MAX_ALLOWED_VALUES = 100
 def make_variable(cls, compute_value, *args):
     if compute_value is not None:
         return cls(*args, compute_value=compute_value)
-    else:
-        # For compatibility with old pickles: remove the second arg if it's
-        # bool `compute_value` (args[3]) can't be bool, so this should be safe
-        if len(args) > 2 and isinstance(args[2], bool):
-            args = args[:2] + args[3:]
-        return cls(*args)
+    # For compatibility with old pickles: remove the second arg if it's
+    # bool `compute_value` (args[3]) can't be bool, so this should be safe
+    if len(args) > 2 and isinstance(args[2], bool):
+        args = args[:2] + args[3:]
+    return cls(*args)
 
 
 def is_discrete_values(values):
@@ -77,9 +76,12 @@ def is_discrete_values(values):
             return False
 
     # Strip NaN from unique
-    unique = {i for i in unique
-              if (not i in MISSING_VALUES and
-                  not (isinstance(i, Number) and np.isnan(i)))}
+    unique = {
+        i
+        for i in unique
+        if i not in MISSING_VALUES
+        and not (isinstance(i, Number) and np.isnan(i))
+    }
 
     # All NaNs => indeterminate
     if not unique:
@@ -214,8 +216,7 @@ class Value(float):
         pass
 
     def __repr__(self):
-        return "Value('%s', %s)" % (self.variable.name,
-                                    self.variable.repr_val(self))
+        return f"Value('{self.variable.name}', {self.variable.repr_val(self)})"
 
     def __str__(self):
         return self.variable.str_val(self)
@@ -237,15 +238,15 @@ class Value(float):
 
     def __lt__(self, other):
         if self.variable.is_primitive():
-            if isinstance(other, str):
-                return super().__lt__(self.variable.to_val(other))
-            else:
-                return super().__lt__(other)
+            return (
+                super().__lt__(self.variable.to_val(other))
+                if isinstance(other, str)
+                else super().__lt__(other)
+            )
+        if isinstance(other, str):
+            return self.value < other
         else:
-            if isinstance(other, str):
-                return self.value < other
-            else:
-                return self.value < other.value
+            return self.value < other.value
 
     def __le__(self, other):
         return self.__lt__(other) or self.__eq__(other)
@@ -272,18 +273,13 @@ class Value(float):
             # == hash("green")
             # User should hash directly ids or domain values instead.
             raise TypeError("unhashable type - cannot hash values of discrete variables!")
-        if self._value is None:
-            return super().__hash__()
-        else:
-            return hash(self._value)
+        return super().__hash__() if self._value is None else hash(self._value)
 
     @property
     def value(self):
         if self.variable.is_discrete:
             return Unknown if isnan(self) else self.variable.values[int(self)]
-        if self.variable.is_string:
-            return self._value
-        return float(self)
+        return self._value if self.variable.is_string else float(self)
 
     def __getnewargs__(self):
         return self.variable, float(self)
@@ -316,10 +312,7 @@ class _predicatedescriptor(property):
     False
     """
     def __get__(self, instance, objtype=None):
-        if instance is None:
-            return self.fget
-        else:
-            return super().__get__(instance, objtype)
+        return self.fget if instance is None else super().__get__(instance, objtype)
 
 
 class Variable(Reprable, metaclass=VariableMeta):
@@ -611,7 +604,7 @@ class ContinuousVariable(Variable):
         self._max_round_diff = 10 ** (-x - 6)
         self.adjust_decimals = 0
         if self._number_of_decimals <= MAX_NUM_OF_DECIMALS:
-            self._format_str = "%.{}f".format(self.number_of_decimals)
+            self._format_str = f"%.{self.number_of_decimals}f"
         else:
             self._format_str = "%g"
 
@@ -619,9 +612,7 @@ class ContinuousVariable(Variable):
         """
         Convert a value, given as an instance of an arbitrary type, to a float.
         """
-        if s in self.unknown_str:
-            return Unknown
-        return float(s)
+        return Unknown if s in self.unknown_str else float(s)
 
     def val_from_str_add(self, s):
         """
@@ -747,8 +738,7 @@ class DiscreteVariable(Variable):
             if isinstance(value, str):
                 return mapping[other.values.index(value)]
             if isinstance(value, np.ndarray):
-                if not (value.ndim == 1
-                        or value.ndim != 2 and min(value.shape) != 1):
+                if value.ndim != 1 and (value.ndim == 2 or min(value.shape) == 1):
                     raise ValueError(
                         f"Column mapping can't map {value.ndim}-d objects")
 
@@ -802,8 +792,7 @@ class DiscreteVariable(Variable):
         if s in self.unknown_str:
             return ValueUnknown
         if not isinstance(s, str):
-            raise TypeError('Cannot convert {} to value of "{}"'.format(
-                type(s).__name__, self.name))
+            raise TypeError(f'Cannot convert {type(s).__name__} to value of "{self.name}"')
         if s not in self._value_index:
             raise ValueError(f"Value {s} does not exist")
         return self._value_index[s]
@@ -845,9 +834,7 @@ class DiscreteVariable(Variable):
         :type val: float (should be whole number)
         :rtype: str
         """
-        if isnan(val):
-            return "?"
-        return '{}'.format(self.values[int(val)])
+        return "?" if isnan(val) else f'{self.values[int(val)]}'
 
     str_val = repr_val
 
@@ -887,9 +874,7 @@ class StringVariable(Variable):
         """
         if s is None:
             return ""
-        if isinstance(s, str):
-            return s
-        return str(s)
+        return s if isinstance(s, str) else str(s)
 
     val_from_str_add = to_val
 
@@ -906,7 +891,7 @@ class StringVariable(Variable):
 
     def repr_val(self, val):
         """Return a string representation of the value."""
-        return '"{}"'.format(self.str_val(val))
+        return f'"{self.str_val(val)}"'
 
 
 class TimeVariable(ContinuousVariable):
@@ -1145,10 +1130,8 @@ class TimeVariable(ContinuousVariable):
 
         if not self._matches_iso_format(datestr):
             try:
-                # If it is a number, assume it is a unix timestamp
-                value = float(datestr)
                 self.have_date = self.have_time = 1
-                return value
+                return float(datestr)
             except ValueError:
                 raise self.InvalidDateTimeFormatError(datestr)
 
@@ -1206,7 +1189,4 @@ class TimeVariable(ContinuousVariable):
         """
         Convert a value, given as an instance of an arbitrary type, to a float.
         """
-        if isinstance(s, str):
-            return self.parse(s)
-        else:
-            return super().to_val(s)
+        return self.parse(s) if isinstance(s, str) else super().to_val(s)

@@ -134,14 +134,14 @@ class CSVReader(FileFormat, DataTableMixin):
                          lambda: (locale.getpreferredencoding(False), None),
                          lambda: (sys.getdefaultencoding(), None),   # desperate
                          lambda: ('utf-8', None),                    # ...
-                         lambda: ('utf-8', 'ignore')):               # fallback
+                         lambda: ('utf-8', 'ignore')):           # fallback
             encoding, errors = encoding()
             # Clear the error flag for all except the last check, because
             # the error of second-to-last check is stored and shown as warning in owfile
             if errors != 'ignore':
                 error = ''
             with self.open(self.filename, mode='rt', newline='',
-                           encoding=encoding, errors=errors) as file:
+                                   encoding=encoding, errors=errors) as file:
                 # Sniff the CSV dialect (delimiter, quotes, ...)
                 try:
                     dialect = csv.Sniffer().sniff(
@@ -174,16 +174,14 @@ class CSVReader(FileFormat, DataTableMixin):
                             path.split(self.filename)[-1])[0]
                     if error and isinstance(error, UnicodeDecodeError):
                         pos, endpos = error.args[2], error.args[3]
-                        warning = ('Skipped invalid byte(s) in position '
-                                   '{}{}').format(pos,
-                                                  ('-' + str(endpos)) if (endpos - pos) > 1 else '')
+                        warning = f"Skipped invalid byte(s) in position {pos}{f'-{str(endpos)}' if endpos - pos > 1 else ''}"
                         warnings.warn(warning)
                     self.set_table_metadata(self.filename, data)
                     return data
                 except Exception as e:
                     error = e
                     continue
-        raise ValueError('Cannot parse dataset {}: {}'.format(self.filename, error)) from error
+        raise ValueError(f'Cannot parse dataset {self.filename}: {error}') from error
 
     @classmethod
     def write_file(cls, filename, data, with_annotations=True):
@@ -268,7 +266,7 @@ class _BaseExcelReader(FileFormat, DataTableMixin):
             if self.sheet and len(self.sheets) > 1:
                 table.name = '-'.join((table.name, self.sheet))
         except Exception:
-            raise IOError("Couldn't load spreadsheet from " + self.filename)
+            raise IOError(f"Couldn't load spreadsheet from {self.filename}")
         return table
 
 
@@ -314,10 +312,7 @@ class ExcelReader(_BaseExcelReader):
         return filter(any, cells)
 
     def _get_active_sheet(self) -> openpyxl.worksheet.worksheet.Worksheet:
-        if self.sheet:
-            return self.workbook[self.sheet]
-        else:
-            return self.workbook.active
+        return self.workbook[self.sheet] if self.sheet else self.workbook.active
 
     @classmethod
     def write_file(cls, filename, data, with_annotations=False):
@@ -414,7 +409,7 @@ class UrlReader(FileFormat):
     def __init__(self, filename):
         filename = filename.strip()
         if not urlparse(filename).scheme:
-            filename = 'http://' + filename
+            filename = f'http://{filename}'
 
         # Fully support URL with query or fragment like http://filename.txt?a=1&b=2#c=3
         def quote_byte(b):
@@ -479,14 +474,14 @@ class UrlReader(FileFormat):
                          r'(?:/.*?gid=(?P<sheet_id>\d+).*|.*)?',
                          url, re.IGNORECASE)
         try:
-            workbook, sheet = match.group('workbook_id'), match.group('sheet_id')
+            workbook, sheet = match['workbook_id'], match['sheet_id']
             if not workbook:
                 raise ValueError
         except (AttributeError, ValueError):
             raise ValueError
-        url = 'https://docs.google.com/spreadsheets/d/{}/export?format=tsv'.format(workbook)
+        url = f'https://docs.google.com/spreadsheets/d/{workbook}/export?format=tsv'
         if sheet:
-            url += '&gid=' + sheet
+            url += f'&gid={sheet}'
         return url
 
     @staticmethod
@@ -497,7 +492,7 @@ class UrlReader(FileFormat):
         match = re.match(r'/file/d/(?P<id>[^/]+).*', parts.path)
         if not match:
             raise ValueError
-        id_ = match.group("id")
+        id_ = match["id"]
         parts = parts._replace(path=f"uc?export=download&id={id_}", query=None)
         return urlunsplit(parts)
 

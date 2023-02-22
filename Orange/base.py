@@ -25,18 +25,16 @@ __all__ = ["Learner", "Model", "SklLearner", "SklModel",
 
 class ReprableWithPreprocessors(Reprable):
     def _reprable_omit_param(self, name, default, value):
-        if name == "preprocessors":
-            default_cls = type(self).preprocessors
-            if value is default or value is default_cls:
-                return True
-            else:
-                try:
-                    return all(p1 is p2 for p1, p2 in
-                               itertools.zip_longest(value, default_cls))
-                except (ValueError, TypeError):
-                    return False
-        else:
+        if name != "preprocessors":
             return super()._reprable_omit_param(name, default, value)
+        default_cls = type(self).preprocessors
+        if value is default or value is default_cls:
+            return True
+        try:
+            return all(p1 is p2 for p1, p2 in
+                       itertools.zip_longest(value, default_cls))
+        except (ValueError, TypeError):
+            return False
 
 
 class Learner(ReprableWithPreprocessors):
@@ -135,8 +133,9 @@ class Learner(ReprableWithPreprocessors):
                           OrangeDeprecationWarning)
 
         if len(data.domain.class_vars) > 1 and not self.supports_multiclass:
-            raise TypeError("%s doesn't support multiple class variables" %
-                            self.__class__.__name__)
+            raise TypeError(
+                f"{self.__class__.__name__} doesn't support multiple class variables"
+            )
 
         progress_callback(0.1, "Fitting...")
         model = self._fit_model(data)
@@ -156,9 +155,8 @@ class Learner(ReprableWithPreprocessors):
     def _fit_model(self, data):
         if type(self).fit is Learner.fit:
             return self.fit_storage(data)
-        else:
-            X, Y, W = data.X, data.Y, data.W if data.has_weights() else None
-            return self.fit(X, Y, W)
+        X, Y, W = data.X, data.Y, data.W if data.has_weights() else None
+        return self.fit(X, Y, W)
 
     def preprocess(self, data, progress_callback=None):
         """Apply the `preprocessors` to the data"""
@@ -219,28 +217,23 @@ class Model(Reprable):
 
     def __init__(self, domain=None, original_domain=None):
         self.domain = domain
-        if original_domain is not None:
-            self.original_domain = original_domain
-        else:
-            self.original_domain = domain
+        self.original_domain = domain if original_domain is None else original_domain
         self.used_vals = None
 
     def predict(self, X):
         if type(self).predict_storage is Model.predict_storage:
             raise TypeError("Descendants of Model must overload method predict")
-        else:
-            Y = np.zeros((len(X), len(self.domain.class_vars)))
-            Y[:] = np.nan
-            table = Table(self.domain, X, Y)
-            return self.predict_storage(table)
+        Y = np.zeros((len(X), len(self.domain.class_vars)))
+        Y[:] = np.nan
+        table = Table(self.domain, X, Y)
+        return self.predict_storage(table)
 
     def predict_storage(self, data):
         if isinstance(data, Storage):
             return self.predict(data.X)
         elif isinstance(data, Instance):
             return self.predict(np.atleast_2d(data.x))
-        raise TypeError("Unrecognized argument (instance of '{}')"
-                        .format(type(data).__name__))
+        raise TypeError(f"Unrecognized argument (instance of '{type(data).__name__}')")
 
     def get_backmappers(self, data):
         backmappers = []
@@ -519,7 +512,7 @@ class SklModel(Model, metaclass=WrapperMeta):
 
     def __repr__(self):
         # Params represented as a comment because not passed into constructor
-        return super().__repr__() + '  # params=' + repr(self.params)
+        return f'{super().__repr__()}  # params={repr(self.params)}'
 
 
 class SklLearner(Learner, metaclass=WrapperMeta):
@@ -553,18 +546,14 @@ class SklLearner(Learner, metaclass=WrapperMeta):
 
     def _get_sklparams(self, values):
         skllearner = self.__wraps__
-        if skllearner is not None:
-            spec = list(
-                inspect.signature(skllearner.__init__).parameters.keys()
-            )
-            # first argument is 'self'
-            assert spec[0] == "self"
-            params = {
-                name: values[name] for name in spec[1:] if name in values
-            }
-        else:
+        if skllearner is None:
             raise TypeError("Wrapper does not define '__wraps__'")
-        return params
+        spec = list(
+            inspect.signature(skllearner.__init__).parameters.keys()
+        )
+        # first argument is 'self'
+        assert spec[0] == "self"
+        return {name: values[name] for name in spec[1:] if name in values}
 
     def preprocess(self, data, progress_callback=None):
         data = super().preprocess(data, progress_callback)
@@ -672,10 +661,9 @@ class CatGBModel(Model, metaclass=WrapperMeta):
         self.cat_features = cat_features
 
     def __call__(self, data, ret=Model.Value):
-        if isinstance(data, Table):
-            with data.force_unlocked(data.X):
-                return super().__call__(data, ret)
-        else:
+        if not isinstance(data, Table):
+            return super().__call__(data, ret)
+        with data.force_unlocked(data.X):
             return super().__call__(data, ret)
 
     def predict(self, X):
@@ -689,7 +677,7 @@ class CatGBModel(Model, metaclass=WrapperMeta):
 
     def __repr__(self):
         # Params represented as a comment because not passed into constructor
-        return super().__repr__() + '  # params=' + repr(self.params)
+        return f'{super().__repr__()}  # params={repr(self.params)}'
 
 
 class CatGBBaseLearner(Learner, metaclass=WrapperMeta):

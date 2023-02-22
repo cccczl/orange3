@@ -84,12 +84,19 @@ CLASSIFIERS = [
 requirements = ['requirements-core.txt', 'requirements-gui.txt']
 
 
-INSTALL_REQUIRES = sorted(set(
-    line.partition('#')[0].strip()
-    for file in (os.path.join(os.path.dirname(__file__), file)
-                 for file in requirements)
-    for line in open(file)
-) - {''})
+INSTALL_REQUIRES = sorted(
+    (
+        {
+            line.partition('#')[0].strip()
+            for file in (
+                os.path.join(os.path.dirname(__file__), file)
+                for file in requirements
+            )
+            for line in open(file)
+        }
+        - {''}
+    )
+)
 
 
 EXTRAS_REQUIRE = {}
@@ -170,7 +177,7 @@ if not release:
         GIT_REVISION = "Unknown"
 
     if not ISRELEASED:
-        FULLVERSION += '.dev0+' + GIT_REVISION[:7]
+        FULLVERSION += f'.dev0+{GIT_REVISION[:7]}'
 
     a = open(filename, 'w')
     try:
@@ -187,30 +194,40 @@ PACKAGES = find_packages(include=("Orange*",))
 # Extra non .py, .{so,pyd} files that are installed within the package dir
 # hierarchy
 PACKAGE_DATA = {
-    "Orange": ["datasets/*.{}".format(ext)
-               for ext in ["tab", "csv", "basket", "info", "dst", "metadata"]],
+    "Orange": [
+        f"datasets/*.{ext}"
+        for ext in ["tab", "csv", "basket", "info", "dst", "metadata"]
+    ],
     "Orange.canvas": ["icons/*.png", "icons/*.svg"],
     "Orange.canvas.workflows": ["*.ows"],
-    "Orange.widgets": ["icons/*.png",
-                       "icons/*.svg"],
+    "Orange.widgets": ["icons/*.png", "icons/*.svg"],
     "Orange.widgets.report": ["icons/*.svg", "*.html"],
-    "Orange.widgets.tests": ["datasets/*.tab",
-                             "workflows/*.ows"],
-    "Orange.widgets.data": ["icons/*.svg",
-                            "icons/paintdata/*.png",
-                            "icons/paintdata/*.svg"],
-    "Orange.widgets.data.tests": ["origin1/*.tab",
-                                  "origin2/*.tab",
-                                  "*.txt", "*.tab"],
+    "Orange.widgets.tests": ["datasets/*.tab", "workflows/*.ows"],
+    "Orange.widgets.data": [
+        "icons/*.svg",
+        "icons/paintdata/*.png",
+        "icons/paintdata/*.svg",
+    ],
+    "Orange.widgets.data.tests": [
+        "origin1/*.tab",
+        "origin2/*.tab",
+        "*.txt",
+        "*.tab",
+    ],
     "Orange.widgets.evaluate": ["icons/*.svg"],
     "Orange.widgets.model": ["icons/*.svg"],
     "Orange.widgets.visualize": ["icons/*.svg"],
     "Orange.widgets.unsupervised": ["icons/*.svg"],
     "Orange.widgets.utils": ["_webview/*.js"],
-    "Orange.tests": ["xlsx_files/*.xlsx", "datasets/*.tab",
-                     "xlsx_files/*.xls",
-                     "datasets/*.basket", "datasets/*.csv",
-                     "datasets/*.pkl", "datasets/*.pkl.gz"]
+    "Orange.tests": [
+        "xlsx_files/*.xlsx",
+        "datasets/*.tab",
+        "xlsx_files/*.xls",
+        "datasets/*.basket",
+        "datasets/*.csv",
+        "datasets/*.pkl",
+        "datasets/*.pkl.gz",
+    ],
 }
 
 
@@ -281,10 +298,7 @@ def find_htmlhelp_files(subdir):
     )
     for file in files:
         relpath = os.path.relpath(file, start=subdir)
-        relsubdir = os.path.dirname(relpath)
-        # path.join("a", "") results in "a/"; distutils install_data does not
-        # accept paths that end with "/" on windows.
-        if relsubdir:
+        if relsubdir := os.path.dirname(relpath):
             targetdir = os.path.join(DATAROOTDIR, relsubdir)
         else:
             targetdir = DATAROOTDIR
@@ -325,19 +339,19 @@ def add_with_option(option, help="", default=None, ):
     def decorator(cmdclass):
         # type: (Type[Command]) -> Type[Command]
         cmdclass.user_options = getattr(cmdclass, "user_options", []) + [
-            ("with-" + option, None, help),
-            ("without-" + option, None, ""),
+            (f"with-{option}", None, help),
+            (f"without-{option}", None, ""),
         ]
         cmdclass.boolean_options = getattr(cmdclass, "boolean_options", []) + [
-            ("with-" + option,),
+            (f"with-{option}",)
         ]
         cmdclass.negative_opt = dict(
-            getattr(cmdclass, "negative_opt", {}), **{
-                "without-" + option: "with-" + option
-            }
+            getattr(cmdclass, "negative_opt", {}),
+            **{f"without-{option}": f"with-{option}"},
         )
-        setattr(cmdclass, "with_" + option, default)
+        setattr(cmdclass, f"with_{option}", default)
         return cmdclass
+
     return decorator
 
 
@@ -474,21 +488,12 @@ def setup_package():
         'sdist': sdist,
         'build': build,
         'build_htmlhelp': build_htmlhelp,
-        # Use install_data from distutils, not numpy.distutils.
-        # numpy.distutils insist all data files are installed in site-packages
-        'install_data': install_data.install_data
+        'install_data': install_data.install_data,
+        "build_ext": build_ext
+        if have_numpy and have_cython
+        else build_ext_error,
     }
-    if have_numpy and have_cython:
-        extra_args = {}
-        cmdclass["build_ext"] = build_ext
-    else:
-        # substitute a build_ext command with one that raises an error when
-        # building. In order to fully support `pip install` we need to
-        # survive a `./setup egg_info` without numpy so pip can properly
-        # query our install dependencies
-        extra_args = {}
-        cmdclass["build_ext"] = build_ext_error
-
+    extra_args = {}
     setup(
         name=NAME,
         version=FULLVERSION,

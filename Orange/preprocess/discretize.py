@@ -31,14 +31,13 @@ class Discretizer(Transformation):
 
     @staticmethod
     def digitize(x, bins):
-        if sp.issparse(x):
-            if len(bins):
-                x.data = np.digitize(x.data, bins)
-            else:
-                x = sp.csr_matrix(x.shape)
-            return x
-        else:
+        if not sp.issparse(x):
             return np.digitize(x, bins) if len(bins) else [0]*len(x)
+        if len(bins):
+            x.data = np.digitize(x.data, bins)
+        else:
+            x = sp.csr_matrix(x.shape)
+        return x
 
     def transform(self, c):
         if sp.issparse(c):
@@ -64,9 +63,8 @@ class Discretizer(Transformation):
             def fmt(val):
                 sval = var.str_val(val)
                 # For decimal numbers, remove trailing 0's and . if no decimals left
-                if re.match(r"^\d+\.\d+", sval):
-                    return sval.rstrip("0").rstrip(".")
-                return sval
+                return sval.rstrip("0").rstrip(".") if re.match(r"^\d+\.\d+", sval) else sval
+
         else:
             def fmt(val):
                 return f"{val:.{ndigits}f}"
@@ -110,7 +108,7 @@ class SingleValueSql:
         self.value = value
 
     def __call__(self):
-        return "'%s'" % self.value
+        return f"'{self.value}'"
 
 
 class Discretization(Reprable):
@@ -145,8 +143,8 @@ class EqualFreq(Discretization):
             att = attribute.to_sql()
             quantiles = [(i + 1) / self.n for i in range(self.n - 1)]
             query = data._sql_query(
-                ['quantile(%s, ARRAY%s)' % (att, str(quantiles))],
-                use_time_sample=1000)
+                [f'quantile({att}, ARRAY{quantiles})'], use_time_sample=1000
+            )
             with data._execute_sql_query(query) as cur:
                 points = sorted(set(cur.fetchone()[0]))
         else:
@@ -172,17 +170,16 @@ class EqualWidth(Discretization):
         if fixed:
             mn, mx = fixed[attribute.name]
             points = self._split_eq_width(mn, mx)
+        elif type(data) == SqlTable:
+            stats = BasicStats(data, attribute)
+            points = self._split_eq_width(stats.min, stats.max)
         else:
-            if type(data) == SqlTable:
-                stats = BasicStats(data, attribute)
-                points = self._split_eq_width(stats.min, stats.max)
+            values = data.get_column(attribute)
+            if values.size:
+                mn, mx = ut.nanmin(values), ut.nanmax(values)
+                points = self._split_eq_width(mn, mx)
             else:
-                values = data.get_column(attribute)
-                if values.size:
-                    mn, mx = ut.nanmin(values), ut.nanmax(values)
-                    points = self._split_eq_width(mn, mx)
-                else:
-                    points = []
+                points = []
         return Discretizer.create_discretized_var(
             data.domain[attribute], points)
 
@@ -211,7 +208,7 @@ class FixedWidth(Discretization):
             if not np.isnan(mn):
                 minf = int(1 + np.floor(mn / self.width))
                 maxf = int(1 + np.floor(mx / self.width))
-                if maxf - minf - 1 >= 100:
+                if maxf - minf >= 101:
                     raise TooManyIntervals
                 points = [i * self.width for i in range(minf, maxf)]
         return Discretizer.create_discretized_var(
@@ -610,7 +607,7 @@ def _simplified_labels(labels):
 
 def _unique_time_bins(unique):
     times = [utc_from_timestamp(x).timetuple() for x in unique]
-    fmt = f'%y %b %d'
+    fmt = '%y %b %d'
     fmt += " %H:%M" * (len({t[2:] for t in times}) > 1)
     fmt += ":%S" * bool(np.all(unique % 60 == 0))
     labels = [time.strftime(fmt, x) for x in times]
@@ -694,12 +691,11 @@ class EntropyMDL(Discretization):
         scale[scale == 0] = 1
         if out is None:
             return X / scale
-        else:
-            if out is not X:
-                assert out.shape == X.shape
-                out[:] = X
-            out /= scale
-            return out
+        if out is not X:
+            assert out.shape == X.shape
+            out[:] = X
+        out /= scale
+        return out
 
     @classmethod
     def _entropy_normalized(cls, D, axis=None):
@@ -897,10 +893,8 @@ class DomainDiscretizer(Reprable):
                 else:
                     new_vars.append(var)
             return new_vars
-        if self.method is None:
-            method = EqualFreq(n=4)
-        else:
-            method = self.method
+
+        method = EqualFreq(n=4) if self.method is None else self.method
         domain = data.domain
         new_attrs = transform_list(domain.attributes, fixed or self.fixed)
         if self.discretize_class:

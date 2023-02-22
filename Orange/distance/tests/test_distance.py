@@ -218,8 +218,7 @@ class EuclideanDistanceTest(FittedDistanceTest, CommonNormalizedTests):
                             [[1, 0, 1, 1],
                              [2/3, 2/3, 1, 2/3],
                              [2/3, 1/3, 1, 1]])
-        assert_almost_equal(model.dist_missing2_disc,
-                            [1 - 1, 1 - 3/9, 1 - 5/9])
+        assert_almost_equal(model.dist_missing2_disc, [0, 1 - 3/9, 1 - 5/9])
 
         dist = model(data)
         assert_almost_equal(dist,
@@ -503,8 +502,7 @@ class ManhattanDistanceTest(FittedDistanceTest, CommonNormalizedTests):
                             [[1, 0, 1, 1],
                              [2/3, 2/3, 1, 2/3],
                              [2/3, 1/3, 1, 1]])
-        assert_almost_equal(model.dist_missing2_disc,
-                            [1 - 1, 1 - 3/9, 1 - 5/9])
+        assert_almost_equal(model.dist_missing2_disc, [0, 1 - 3/9, 1 - 5/9])
 
         dist = model(data)
         assert_almost_equal(dist,

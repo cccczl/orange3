@@ -68,7 +68,7 @@ class DistMatrix(np.ndarray):
         self.row_items = state[-3]
         self.col_items = state[-2]
         self.axis = state[-1]
-        super().__setstate__(state[0:-3])
+        super().__setstate__(state[:-3])
 
     @property
     @deprecated
@@ -195,10 +195,7 @@ class DistMatrix(np.ndarray):
                     symmetric = False
                 else:
                     flag_data = flag.split("=")
-                    if len(flag_data) == 2:
-                        name, value = map(str.strip, flag_data)
-                    else:
-                        name, value = "", None
+                    name, value = map(str.strip, flag_data) if len(flag_data) == 2 else ("", None)
                     if name == "axis" and value.isdigit():
                         axis = int(value)
                     else:
@@ -340,14 +337,13 @@ class DistMatrix(np.ndarray):
         if not self._trivial_labels(items):
             return None
         if isinstance(items, (list, tuple)) \
-                and all(isinstance(x, str) for x in items):
+                    and all(isinstance(x, str) for x in items):
             return items
         if self.axis == 0:
             return [attr.name for attr in items.domain.attributes]
-        else:
-            string_var = next(var for var in items.domain.metas
-                              if isinstance(var, StringVariable))
-            return items.get_column(string_var)
+        string_var = next(var for var in items.domain.metas
+                          if isinstance(var, StringVariable))
+        return items.get_column(string_var)
 
     def save(self, filename):
         if os.path.splitext(filename)[1] == ".xlsx":

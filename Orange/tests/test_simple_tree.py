@@ -30,10 +30,11 @@ class TestSimpleTreeLearner(unittest.TestCase):
         y_cls[np.random.random(self.N) < 0.1] = np.nan
         y_reg[np.random.random(self.N) < 0.1] = np.nan
 
-        di = [Orange.data.domain.DiscreteVariable(
-            'd{}'.format(i), ["0", "1"]) for i in range(self.Mi)]
-        df = [Orange.data.domain.ContinuousVariable(
-            'c{}'.format(i)) for i in range(self.Mf)]
+        di = [
+            Orange.data.domain.DiscreteVariable(f'd{i}', ["0", "1"])
+            for i in range(self.Mi)
+        ]
+        df = [Orange.data.domain.ContinuousVariable(f'c{i}') for i in range(self.Mf)]
         dcls = Orange.data.domain.DiscreteVariable('yc', ["0", "1", "2"])
         dreg = Orange.data.domain.ContinuousVariable('yr')
         domain_cls = Orange.data.domain.Domain(di + df, dcls)

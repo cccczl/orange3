@@ -73,11 +73,7 @@ def torgerson(distances, n_components=2, eigen_solver="auto"):
     B = np.multiply(D_sq, -0.5, out=D_sq)
 
     if eigen_solver == 'auto':
-        if N > 200 and n_components < 10:  # arbitrary - follow skl KernelPCA
-            eigen_solver = 'arpack'
-        else:
-            eigen_solver = 'lapack'
-
+        eigen_solver = 'arpack' if N > 200 and n_components < 10 else 'lapack'
     if eigen_solver == "arpack":
         v0 = np.random.RandomState(0xD06).uniform(-1, 1, B.shape[0])
         w, v = arpack_eigh(B, k=n_components, v0=v0)
@@ -98,9 +94,9 @@ def torgerson(distances, n_components=2, eigen_solver="auto"):
     neg = L < -5 * np.finfo(L.dtype).eps
     if np.any(neg):
         warnings.warn(
-            ("{} of the {} eigenvalues were negative."
-             .format(np.sum(neg), L.size)),
-            UserWarning, stacklevel=2,
+            f"{np.sum(neg)} of the {L.size} eigenvalues were negative.",
+            UserWarning,
+            stacklevel=2,
         )
     # ... and clamp them all to 0
     L[L < 0] = 0
@@ -236,12 +232,11 @@ class TSNEModel(Projection):
                 "X.toarray() to convert to a dense numpy array."
             )
         if isinstance(self.embedding_.affinities, openTSNE.affinity.Multiscale):
-            perplexity = kwargs.pop("perplexity", False)
-            if perplexity:
+            if perplexity := kwargs.pop("perplexity", False):
                 if not isinstance(self.perplexity, Iterable):
                     raise ValueError(
-                        "Perplexity should be an instance of `Iterable`, `%s` "
-                        "given." % type(self.perplexity).__name__)
+                        f"Perplexity should be an instance of `Iterable`, `{type(self.perplexity).__name__}` given."
+                    )
                 perplexity_params = {"perplexities": perplexity}
             else:
                 perplexity_params = {}
@@ -428,7 +423,7 @@ class TSNE(Projector):
                     "Perplexity should be an instance of `Iterable`, `%s` "
                     "given." % type(self.perplexity).__name__
                 )
-            affinities = openTSNE.affinity.Multiscale(
+            return openTSNE.affinity.Multiscale(
                 X,
                 perplexities=self.perplexity,
                 metric=self.metric,
@@ -442,7 +437,7 @@ class TSNE(Projector):
                     "Perplexity should be an instance of `float`, `%s` "
                     "given." % type(self.perplexity).__name__
                 )
-            affinities = openTSNE.affinity.PerplexityBasedNN(
+            return openTSNE.affinity.PerplexityBasedNN(
                 X,
                 perplexity=self.perplexity,
                 metric=self.metric,
@@ -450,8 +445,6 @@ class TSNE(Projector):
                 random_state=self.random_state,
                 n_jobs=self.n_jobs,
             )
-
-        return affinities
 
     def compute_initialization(self, X):
         # Compute the initial positions of individual points

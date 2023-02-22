@@ -131,7 +131,7 @@ class FeatureScoringTest(unittest.TestCase):
         scorer = RReliefF(random_state=42)
         weights = scorer(xor, None)
         best = {xor.domain[attr].name for attr in weights.argsort()[-2:]}
-        self.assertSetEqual(set(a.name for a in xor.domain.attributes[:2]), best)
+        self.assertSetEqual({a.name for a in xor.domain.attributes[:2]}, best)
         weights = scorer(self.housing, None)
         best = {self.housing.domain[attr].name for attr in weights.argsort()[-6:]}
         for feature in ('LSTAT', 'RM'):

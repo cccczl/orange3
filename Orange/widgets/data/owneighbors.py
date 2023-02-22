@@ -128,10 +128,7 @@ class OWNeighbors(OWWidget):
     def commit(self):
         indices = self._compute_indices()
 
-        if indices is None:
-            neighbors = None
-        else:
-            neighbors = self._data_with_similarity(indices)
+        neighbors = None if indices is None else self._data_with_similarity(indices)
         self.Outputs.data.send(neighbors)
 
     def _compute_indices(self):

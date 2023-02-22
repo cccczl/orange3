@@ -311,7 +311,7 @@ class TestRandom(unittest.TestCase):
         )
         table = data.Table.from_numpy(domain, np.array(X))
 
-        for i in range(0, 3):
+        for i in range(3):
             v = impute.Random()(table, domain[i])
             self.assertTrue(np.all(np.isfinite(v.compute_value(table))))
 

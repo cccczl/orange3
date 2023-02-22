@@ -37,10 +37,7 @@ def is_on_path(name):
     -------
     found : bool
     """
-    for _, name_, _ in pkgutil.iter_modules(sys.path):
-        if name == name_:
-            return True
-    return False
+    return any(name == name_ for _, name_, _ in pkgutil.iter_modules(sys.path))
 
 
 # noinspection PyPep8Naming,PyUnresolvedReferences
@@ -861,7 +858,7 @@ time,continuous
                         for f in TimeVariable.ADDITIONAL_FORMATS[k][0]
                     ]
                     # test any equal to expected
-                    self.assertTrue(any(d == expected for d in parsed))
+                    self.assertTrue(expected in parsed)
                     # test that no other equal to any other date - only nan or expected
                     self.assertTrue(any(d == expected or pd.isnull(d) for d in parsed))
 

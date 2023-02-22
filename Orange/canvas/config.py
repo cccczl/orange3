@@ -75,15 +75,13 @@ class Config(config.Config):
     def init(self):
         super().init()
         QGuiApplication.setApplicationDisplayName(self.ApplicationName)
-        widget_settings_dir_cfg = environ.get_path("widget_settings_dir", "")
-        if widget_settings_dir_cfg:
+        if widget_settings_dir_cfg := environ.get_path("widget_settings_dir", ""):
             # widget_settings_dir is configured via config file
             set_widget_settings_dir_components(
                 widget_settings_dir_cfg, self.ApplicationVersion
             )
 
-        canvas_settings_dir_cfg = environ.get_path("canvas_settings_dir", "")
-        if canvas_settings_dir_cfg:
+        if canvas_settings_dir_cfg := environ.get_path("canvas_settings_dir", ""):
             # canvas_settings_dir is configured via config file
             QSettings.setPath(
                 QSettings.IniFormat, QSettings.UserScope,

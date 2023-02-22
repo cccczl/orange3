@@ -17,10 +17,11 @@ def _get_variable(variable, dat, attr_name, expected_type=None, expected_name=""
         failed = True
     if failed or (expected_type is not None and not isinstance(variable, expected_type)):
         if not expected_type or isinstance(variable, data.Variable):
-            raise ValueError("expected %s variable not %s" % (expected_name, variable))
+            raise ValueError(f"expected {expected_name} variable not {variable}")
         else:
-            raise ValueError("expected %s, not '%s'" % (
-                expected_type.__name__, type(variable).__name__))
+            raise ValueError(
+                f"expected {expected_type.__name__}, not '{type(variable).__name__}'"
+            )
     return variable
 
 
@@ -61,14 +62,14 @@ class Discrete(np.ndarray):
     def from_data(cls, data, col_variable, row_variable=None):
         if row_variable is None:
             row_variable = data.domain.class_var
-            if row_variable is None:
-                raise ValueError(
-                    "row_variable needs to be specified (data has no class)")
+        if row_variable is None:
+            raise ValueError(
+                "row_variable needs to be specified (data has no class)")
         row_variable = _get_variable(row_variable, data, "row_variable")
         col_variable = _get_variable(col_variable, data, "col_variable")
         try:
             dist, col_unknowns, row_unknowns, unknowns = \
-                data._compute_contingency([col_variable], row_variable)[0]
+                    data._compute_contingency([col_variable], row_variable)[0]
 
             self = super().__new__(cls, dist.shape)
             self[...] = dist
@@ -223,14 +224,14 @@ class Continuous:
     def from_data(self, data, col_variable, row_variable=None):
         if row_variable is None:
             row_variable = data.domain.class_var
-            if row_variable is None:
-                raise ValueError("row_variable needs to be specified (data has no class)")
+        if row_variable is None:
+            raise ValueError("row_variable needs to be specified (data has no class)")
         self.row_variable = _get_variable(row_variable, data, "row_variable")
         self.col_variable = _get_variable(col_variable, data, "col_variable")
         try:
             conts = data._compute_contingency([col_variable], row_variable)
             (self.values, self.counts), self.col_unknowns, self.row_unknowns, \
-            self.unknowns = conts[0]
+                self.unknowns = conts[0]
         except NotImplementedError:
             raise NotImplementedError(
                 "Fallback method for computation of contingencies is not implemented yet"
@@ -243,7 +244,7 @@ class Continuous:
         with adding a row of row_unknowns together with values.
         """
         # pylint: disable=unnecessary-comprehension
-        other_rows = [x for x in self]
+        other_rows = list(self)
         ind = self.row_unknowns > 0
         unknown_rows = np.vstack((self.values[ind], self.row_unknowns[ind]))
         return other_rows + [unknown_rows]
@@ -293,9 +294,8 @@ class Continuous:
                 if t > 1e-6:
                     x[:, 1] /= t
                     self.unknowns[i] /= t
-                else:
-                    if self.unknowns[i] > 1e-6:
-                        self.unknowns[i] = 1
+                elif self.unknowns[i] > 1e-6:
+                    self.unknowns[i] = 1
 
 
 def get_contingency(dat, col_variable, row_variable=None, col_unknowns=None,
@@ -308,8 +308,7 @@ def get_contingency(dat, col_variable, row_variable=None, col_unknowns=None,
         return Continuous(
             dat, col_variable, row_variable, col_unknowns, row_unknowns)
     else:
-        raise TypeError(
-            "cannot compute distribution of '%s'" % type(variable).__name__)
+        raise TypeError(f"cannot compute distribution of '{type(variable).__name__}'")
 
 
 def get_contingencies(dat, skip_discrete=False, skip_continuous=False):
@@ -329,10 +328,10 @@ def get_contingencies(dat, skip_discrete=False, skip_continuous=False):
         dist_unks = dat._compute_contingency(columns)
         if columns is None:
             columns = np.arange(len(vars))
-        contigs = []
-        for col, (cont, col_unk, row_unk, unks) in zip(columns, dist_unks):
-            contigs.append(get_contingency(
-                cont, vars[col], row_var, col_unk, row_unk, unks))
+        contigs = [
+            get_contingency(cont, vars[col], row_var, col_unk, row_unk, unks)
+            for col, (cont, col_unk, row_unk, unks) in zip(columns, dist_unks)
+        ]
     except NotImplementedError:
         if columns is None:
             columns = range(len(vars))

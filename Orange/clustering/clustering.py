@@ -23,8 +23,7 @@ class ClusteringModel:
         if isinstance(data, np.ndarray):
             one_d = data.ndim == 1
             prediction = self.predict(np.atleast_2d(data))
-        elif isinstance(data, scipy.sparse.csr_matrix) or \
-                isinstance(data, scipy.sparse.csc_matrix):
+        elif isinstance(data, (scipy.sparse.csr_matrix, scipy.sparse.csc_matrix)):
             prediction = self.predict(data)
         elif isinstance(data, (Table, Instance)):
             if isinstance(data, Instance):
@@ -32,8 +31,8 @@ class ClusteringModel:
                 one_d = True
             if data.domain != self.domain:
                 if self.original_domain.attributes != data.domain.attributes \
-                        and data.X.size \
-                        and not np.isnan(data.X).all():
+                            and data.X.size \
+                            and not np.isnan(data.X).all():
                     data = data.transform(self.original_domain)
                     if np.isnan(data.X).all():
                         raise DomainTransformationError(

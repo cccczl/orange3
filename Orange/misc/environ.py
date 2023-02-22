@@ -93,14 +93,13 @@ def get_path(name: str, default: Optional[str] = None) -> Optional[str]:
 
 def _default_data_dir_base():
     if sys.platform == "darwin":
-        base = os.path.expanduser("~/Library/Application Support")
+        return os.path.expanduser("~/Library/Application Support")
     elif sys.platform == "win32":
-        base = os.getenv("APPDATA", os.path.expanduser("~/AppData/Local"))
+        return os.getenv("APPDATA", os.path.expanduser("~/AppData/Local"))
     elif os.name == "posix":
-        base = os.getenv('XDG_DATA_HOME', os.path.expanduser("~/.local/share"))
+        return os.getenv('XDG_DATA_HOME', os.path.expanduser("~/.local/share"))
     else:
-        base = os.path.expanduser("~/.local/share")
-    return base
+        return os.path.expanduser("~/.local/share")
 
 
 def data_dir_base():
@@ -155,12 +154,7 @@ def _default_cache_dir():
         base = os.path.expanduser("~/.cache")
 
     base = os.path.join(base, "Orange", Orange.__version__)
-    if sys.platform == "win32":
-        # On Windows cache and data dir are the same.
-        # Microsoft suggest using a Cache subdirectory
-        return os.path.join(base, "Cache")
-    else:
-        return base
+    return os.path.join(base, "Cache") if sys.platform == "win32" else base
 
 
 def cache_dir(*args):

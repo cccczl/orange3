@@ -55,10 +55,7 @@ class Transformation(Reprable):
         if inst:
             data = Table.from_list(data.domain, [data])
         data = data.transform(self._target_domain)
-        if self.variable.is_primitive():
-            col = data.X
-        else:
-            col = data.metas
+        col = data.X if self.variable.is_primitive() else data.metas
         if not sp.issparse(col) and col.ndim > 1:
             col = col.squeeze(axis=1)
         transformed = self.transform(col)
@@ -112,10 +109,7 @@ class _Indicator(Transformation):
     @staticmethod
     def _nan_fixed(c, transformed):
         if np.isscalar(c):
-            if c != c:  # pylint: disable=comparison-with-itself
-                transformed = np.nan
-            else:
-                transformed = float(transformed)
+            transformed = np.nan if c != c else float(transformed)
         else:
             transformed = transformed.astype(float)
             transformed[np.isnan(c)] = np.nan
@@ -181,12 +175,11 @@ class Normalizer(Transformation):
         self.factor = factor
 
     def transform(self, c):
-        if sp.issparse(c):
-            if self.offset != 0:
-                raise ValueError('Normalization does not work for sparse data.')
-            return c * self.factor
-        else:
+        if not sp.issparse(c):
             return (c - self.offset) * self.factor
+        if self.offset != 0:
+            raise ValueError('Normalization does not work for sparse data.')
+        return c * self.factor
 
     def __eq__(self, other):
         return super().__eq__(other) \

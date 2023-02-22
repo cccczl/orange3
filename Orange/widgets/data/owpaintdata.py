@@ -472,25 +472,24 @@ class SelectTool(DataTool):
         return self._item.rect()
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            pos = self.mapToPlot(event.pos())
-            if self._item.isVisible():
-                if self.selectionRect().contains(pos):
-                    # Allow the event to propagate to the item.
-                    event.setAccepted(False)
-                    self._item.setCursor(Qt.ClosedHandCursor)
-                    return False
+        if event.button() != Qt.LeftButton:
+            return super().mousePressEvent(event)
+        pos = self.mapToPlot(event.pos())
+        if self._item.isVisible() and self.selectionRect().contains(pos):
+            # Allow the event to propagate to the item.
+            event.setAccepted(False)
+            self._item.setCursor(Qt.ClosedHandCursor)
+            return False
 
-            self._mouse_dragging = True
+        self._mouse_dragging = True
 
-            self._start_pos = pos
-            self._item.setVisible(True)
-            self._plot.addItem(self._item)
+        self._start_pos = pos
+        self._item.setVisible(True)
+        self._plot.addItem(self._item)
 
-            self.setSelectionRect(QRectF(pos, pos))
-            event.accept()
-            return True
-        return super().mousePressEvent(event)
+        self.setSelectionRect(QRectF(pos, pos))
+        event.accept()
+        return True
 
     def mouseMoveEvent(self, event):
         if event.buttons() & Qt.LeftButton:
@@ -1027,10 +1026,11 @@ class OWPaintData(OWWidget):
             y = data[:, y].Y
 
         self.input_has_attr2 = len(data.domain.attributes) >= 2
-        if not self.input_has_attr2:
-            self.input_data = np.column_stack((X, np.zeros(len(data)), y))
-        else:
-            self.input_data = np.column_stack((X, y))
+        self.input_data = (
+            np.column_stack((X, y))
+            if self.input_has_attr2
+            else np.column_stack((X, np.zeros(len(data)), y))
+        )
         self.reset_to_input()
         self.commit.now()
 
@@ -1120,8 +1120,7 @@ class OWPaintData(OWWidget):
 #             self.undo_stack.push(command)
 
     def selected_class_label(self):
-        rows = self.classValuesView.selectedIndexes()
-        if rows:
+        if rows := self.classValuesView.selectedIndexes():
             return rows[0].row()
         return None
 

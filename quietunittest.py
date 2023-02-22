@@ -46,7 +46,7 @@ class PreambuleStream(IOBase):
     def write_msg(self, s):
         if self.line_before_msg:
             _stdout.write("\n")
-        _stdout.write(self.preambule + " ... " + s)
+        _stdout.write(f"{self.preambule} ... {s}")
         self.line_before_msg = False
         self.preambule = ""
 
@@ -68,8 +68,7 @@ class QuietTestResult(TestResult):
 
     @staticmethod
     def getDescription(test):
-        doc_first_line = test.shortDescription()
-        if doc_first_line:
+        if doc_first_line := test.shortDescription():
             return '\n'.join((str(test), doc_first_line))
         else:
             return str(test)
@@ -91,9 +90,9 @@ class QuietTestResult(TestResult):
     def printErrorList(self, flavour, errors):
         for test, err in errors:
             print(self.separator1)
-            print("%s: %s" % (flavour,self.getDescription(test)))
+            print(f"{flavour}: {self.getDescription(test)}")
             print(self.separator2)
-            print("%s" % err)
+            print(f"{err}")
 
 
 _stdout = sys.stdout

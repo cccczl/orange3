@@ -474,7 +474,7 @@ class Scale(Preprocess):
     """
     class _MethodEnum(Enum):
         def __call__(self, *args, **kwargs):
-            return getattr(Scale, '_' + self.name)(*args, **kwargs)
+            return getattr(Scale, f'_{self.name}')(*args, **kwargs)
 
     CenteringType = _MethodEnum("Scale", ("NoCentering", "Mean", "Median"),
                                 qualname="Scale.CenteringType")
@@ -601,13 +601,12 @@ class RemoveSparse(Preprocess):
                               for i in range(w)]
             else:
                 sparseness = data.X.shape[0] - np.count_nonzero(data.X, axis=0)
-        else:  # filter by nans
-            if sp.issparse(data.X):
-                data_csc = sp.csc_matrix(data.X)
-                sparseness = [np.sum(np.isnan(data.X[:, i].data))
-                              for i in range(data_csc.shape[1])]
-            else:
-                sparseness = np.sum(np.isnan(data.X), axis=0)
+        elif sp.issparse(data.X):
+            data_csc = sp.csc_matrix(data.X)
+            sparseness = [np.sum(np.isnan(data.X[:, i].data))
+                          for i in range(data_csc.shape[1])]
+        else:
+            sparseness = np.sum(np.isnan(data.X), axis=0)
         att = [a for a, s in zip(data.domain.attributes, sparseness)
                if s <= threshold]
         domain = Orange.data.Domain(att, data.domain.class_vars,

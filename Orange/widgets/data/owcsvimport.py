@@ -119,10 +119,7 @@ class Options:
     RowSpec = RowSpec
     ColumnType = ColumnType
 
-    def __init__(self, encoding='utf-8', dialect=csv.excel(),
-                 columntypes: Iterable[Tuple[range, 'ColumnType']] = (),
-                 rowspec=((range(0, 1), RowSpec.Header),),
-                 decimal_separator=".", group_separator="") -> None:
+    def __init__(self, encoding='utf-8', dialect=csv.excel(), columntypes: Iterable[Tuple[range, 'ColumnType']] = (), rowspec=((range(1), RowSpec.Header), ), decimal_separator=".", group_separator="") -> None:
         self.encoding = encoding
         self.dialect = dialect
         self.columntypes = list(columntypes)  # type: List[Tuple[range, ColumnType]]
@@ -374,10 +371,7 @@ def dialog_button_box_set_enabled(buttonbox, enabled):
         if not enabled:
             if b.property(stashname) is None:
                 b.setProperty(stashname, b.isEnabledTo(buttonbox))
-            b.setEnabled(
-                role == QDialogButtonBox.RejectRole or
-                role == QDialogButtonBox.HelpRole
-            )
+            b.setEnabled(role in [QDialogButtonBox.RejectRole, QDialogButtonBox.HelpRole])
         else:
             stashed_state = b.property(stashname)
             if isinstance(stashed_state, bool):
@@ -602,10 +596,7 @@ def default_options_for_mime_type(
             pass
         else:
             break
-    if header:
-        rowspec = [(range(0, 1), RowSpec.Header)]
-    else:
-        rowspec = []
+    rowspec = [(range(1), RowSpec.Header)] if header else []
     return Options(dialect=dialect, encoding=encoding, rowspec=rowspec)
 
 
@@ -957,10 +948,7 @@ class OWCSVFileImport(widget.OWWidget):
             return None
 
         item = self.recent_combo.model().item(idx)  # type: QStandardItem
-        if isinstance(item, ImportItem):
-            return item
-        else:
-            return None
+        return item if isinstance(item, ImportItem) else None
 
     def _activate_import_dialog(self):
         """Activate the Import Options dialog for the  current item."""
@@ -1014,7 +1002,7 @@ class OWCSVFileImport(widget.OWWidget):
     def _local_settings(cls):
         # type: () -> QSettings
         """Return a QSettings instance with local persistent settings."""
-        filename = "{}.ini".format(qname(cls))
+        filename = f"{qname(cls)}.ini"
         fname = os.path.join(settings.widget_settings_dir(), filename)
         return QSettings(fname, QSettings.IniFormat)
 
@@ -1142,9 +1130,7 @@ class OWCSVFileImport(widget.OWWidget):
         self.load_button.setText("Restart")
         path = self.current_item().path()
         self.Error.clear()
-        self.summary_text.setText(
-            "<div>Loading: <i>{}</i><br/>".format(prettyfypath(path))
-        )
+        self.summary_text.setText(f"<div>Loading: <i>{prettyfypath(path)}</i><br/>")
 
     def __clear_running_state(self, ):
         self.progressBarFinished()
@@ -1766,10 +1752,7 @@ def index_where(iterable, pred):
 
     If no element matches return `None`.
     """
-    for i, el in enumerate(iterable):
-        if pred(el):
-            return i
-    return None
+    return next((i for i, el in enumerate(iterable) if pred(el)), None)
 
 
 def pandas_to_table(df):
@@ -1823,9 +1806,8 @@ def pandas_to_table(df):
             var = Orange.data.ContinuousVariable.make(str(header))
         else:
             warnings.warn(
-                "Column '{}' with dtype: {} skipped."
-                .format(header, series.dtype),
-                UserWarning
+                f"Column '{header}' with dtype: {series.dtype} skipped.",
+                UserWarning,
             )
             continue
         columns.append((var, orangecol))
@@ -1839,11 +1821,7 @@ def pandas_to_table(df):
     else:
         X = np.empty((df.shape[0], 0), dtype=np.float64)
     metas = [v for v, _ in cols_m]
-    if cols_m:
-        M = np.column_stack([a for _, a in cols_m])
-    else:
-        M = None
-
+    M = np.column_stack([a for _, a in cols_m]) if cols_m else None
     domain = Orange.data.Domain(variables, metas=metas)
     return Orange.data.Table.from_numpy(domain, X, None, M)
 

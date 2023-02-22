@@ -211,9 +211,7 @@ class FeatureStatisticsTableModel(AbstractSortTableModel):
     @property
     def variables(self):
         matrices = [self.__attributes[0], self.__class_vars[0], self.__metas[0]]
-        if not any(m.size for m in matrices):
-            return []
-        return np.hstack(matrices)
+        return np.hstack(matrices) if any(m.size for m in matrices) else []
 
     @staticmethod
     def _attr_indices(attrs):
@@ -506,9 +504,8 @@ class FeatureStatisticsTableModel(AbstractSortTableModel):
 
     def headerData(self, section, orientation, role):
         # type: (int, Qt.Orientation, Qt.ItemDataRole) -> Any
-        if orientation == Qt.Horizontal:
-            if role == Qt.DisplayRole:
-                return self.Columns.from_index(section).name
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            return self.Columns.from_index(section).name
 
         return None
 
@@ -885,10 +882,7 @@ class OWFeatureStatistics(widget.OWWidget):
     @classmethod
     def migrate_context(cls, context, version):
         if not version or version < 2:
-            selected_rows = context.values.pop("selected_rows", None)
-            if not selected_rows:
-                selected_vars = []
-            else:
+            if selected_rows := context.values.pop("selected_rows", None):
                 # This assumes that dict was saved by Python >= 3.6 so dict is
                 # ordered; if not, context hasn't had worked anyway.
                 all_vars = [
@@ -900,6 +894,8 @@ class OWFeatureStatistics(widget.OWWidget):
                     # was the only hidden var when settings_version < 2, so:
                     if tpe != 3]
                 selected_vars = [all_vars[i] for i in selected_rows]
+            else:
+                selected_vars = []
             context.values["selected_vars"] = selected_vars, -3
 
 

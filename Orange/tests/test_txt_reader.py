@@ -63,11 +63,11 @@ class TestTabReader(unittest.TestCase):
 
             f1, f2, f3 = table.domain.variables
             self.assertIsInstance(f1, DiscreteVariable)
-            self.assertEqual(f1.name, name + "1")
+            self.assertEqual(f1.name, f"{name}1")
             self.assertIsInstance(f2, ContinuousVariable)
-            self.assertEqual(f2.name, name + "2")
+            self.assertEqual(f2.name, f"{name}2")
             self.assertIsInstance(f3, ContinuousVariable)
-            self.assertEqual(f3.name, name + "3")
+            self.assertEqual(f3.name, f"{name}3")
         finally:
             os.remove(filename)
 

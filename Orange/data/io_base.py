@@ -74,7 +74,7 @@ class Flags:
                     setattr(self, flag, True)
                     setattr(self, self.ALL.get(flag, ''), True)
             elif flag:
-                warnings.warn('Invalid attribute flag \'{}\''.format(flag))
+                warnings.warn(f"Invalid attribute flag \'{flag}\'")
 
     @staticmethod
     def join(iterable, *args):
@@ -95,9 +95,9 @@ _RE_TYPES = re.compile(r'^\s*({}|{}|)\s*$'.format(
     '|'.join(flatten(getattr(vartype, 'TYPE_HEADERS')
                      for vartype in Variable.registry.values()))
 ))
-_RE_FLAGS = re.compile(r'^\s*( |{}|)*\s*$'.format(
-    '|'.join(flatten(filter(None, i) for i in Flags.ALL.items()))
-))
+_RE_FLAGS = re.compile(
+    f"^\s*( |{'|'.join(flatten(filter(None, i) for i in Flags.ALL.items()))}|)*\s*$"
+)
 
 
 class _ColumnProperties:
@@ -107,10 +107,7 @@ class _ColumnProperties:
         self.values = values
         self.orig_values = orig_values
         self.coltype = coltype
-        if coltype_kwargs is None:
-            self.coltype_kwargs = {}
-        else:
-            self.coltype_kwargs = dict(coltype_kwargs)
+        self.coltype_kwargs = {} if coltype_kwargs is None else dict(coltype_kwargs)
 
 
 class _TableHeader:
@@ -209,10 +206,11 @@ class _TableBuilder:
 
     def create_table(self) -> Table:
         self.create_columns()
-        if not self.data.size:
-            return Table.from_domain(self.get_domain(), 0)
-        else:
-            return Table.from_numpy(self.get_domain(), *self.get_arrays())
+        return (
+            Table.from_numpy(self.get_domain(), *self.get_arrays())
+            if self.data.size
+            else Table.from_domain(self.get_domain(), 0)
+        )
 
     def create_columns(self):
         names = self.header.names
@@ -436,9 +434,7 @@ class DataTableMixin:
         # Try to parse a three-line header
         lines = []
         try:
-            lines.append(list(next(data)))
-            lines.append(list(next(data)))
-            lines.append(list(next(data)))
+            lines.extend((list(next(data)), list(next(data)), list(next(data))))
         except StopIteration:
             lines, data = [], chain(lines, data)
         if lines:
@@ -553,21 +549,20 @@ class _FileReader:
             # Skip ambiguous, invalid compression-only extensions added on OSX
             if ext in Compression.all:
                 continue
-            if fnmatch(path.basename(filename), '*' + ext):
+            if fnmatch(path.basename(filename), f'*{ext}'):
                 return reader(filename)
 
-        raise MissingReaderException('No readers for file "{}"'.format(filename))
+        raise MissingReaderException(f'No readers for file "{filename}"')
 
     @classmethod
     def set_table_metadata(cls, filename, table):
         # pylint: disable=bare-except
-        if isinstance(filename, str) and path.exists(filename + '.metadata'):
+        if isinstance(filename, str) and path.exists(f'{filename}.metadata'):
             try:
-                with open(filename + '.metadata', 'rb') as f:
+                with open(f'{filename}.metadata', 'rb') as f:
                     table.attributes = pickle.load(f)
-            # Unpickling throws different exceptions, not just UnpickleError
             except:
-                with open(filename + '.metadata', encoding='utf-8') as f:
+                with open(f'{filename}.metadata', encoding='utf-8') as f:
                     table.attributes = OrderedDict(
                         (k.strip(), v.strip())
                         for k, v in (line.split(":", 1)
@@ -595,7 +590,7 @@ class _FileWriter:
                     pickle.dump(data.attributes, f, protocol=PICKLE_PROTOCOL)
 
         if isinstance(filename, str):
-            metafile = filename + '.metadata'
+            metafile = f'{filename}.metadata'
             if getattr(data, 'attributes', None):
                 write_file(metafile)
             elif path.exists(metafile):
@@ -680,15 +675,14 @@ class _FileWriter:
 
 
 class _FileFormatMeta(Registry):
-    def __new__(mcs, name, bases, attrs):
-        newcls = super().__new__(mcs, name, bases, attrs)
+    def __new__(cls, name, bases, attrs):
+        newcls = super().__new__(cls, name, bases, attrs)
 
         # Optionally add compressed versions of extensions as supported
         if getattr(newcls, 'SUPPORT_COMPRESSED', False):
             new_extensions = list(getattr(newcls, 'EXTENSIONS', ()))
             for compression in Compression.all:
-                for ext in newcls.EXTENSIONS:
-                    new_extensions.append(ext + compression)
+                new_extensions.extend(ext + compression for ext in newcls.EXTENSIONS)
                 if sys.platform in ('darwin', 'win32'):
                     # OSX file dialog doesn't support filtering on double
                     # extensions (e.g. .csv.gz)
@@ -780,11 +774,9 @@ class FileFormatBase(_FileReader, _FileWriter, metaclass=_FileFormatMeta):
             if path.exists(absolute_filename):
                 break
             for ext in cls.readers:
-                if fnmatch(path.basename(filename), '*' + ext):
+                if fnmatch(path.basename(filename), f'*{ext}'):
                     break
-                # glob uses fnmatch internally
-                matching_files = glob(absolute_filename + ext)
-                if matching_files:
+                if matching_files := glob(absolute_filename + ext):
                     absolute_filename = matching_files[0]
                     break
             if path.exists(absolute_filename):
@@ -793,7 +785,7 @@ class FileFormatBase(_FileReader, _FileWriter, metaclass=_FileFormatMeta):
             absolute_filename = ""
 
         if not path.exists(absolute_filename):
-            raise IOError('File "{}" was not found.'.format(filename))
+            raise IOError(f'File "{filename}" was not found.')
 
         return absolute_filename
 
@@ -808,4 +800,4 @@ class FileFormatBase(_FileReader, _FileWriter, metaclass=_FileFormatMeta):
 
     @classmethod
     def qualified_name(cls):
-        return cls.__module__ + '.' + cls.__name__
+        return f'{cls.__module__}.{cls.__name__}'

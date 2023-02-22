@@ -377,7 +377,7 @@ class TestDiscrete(unittest.TestCase):
     def test_compute_contingency_invalid(self):
         rstate = np.random.RandomState(0xFFFF)
         X = data.ContinuousVariable("X")
-        C = data.DiscreteVariable("C", values=["C{}".format(i + 1) for i in range(1024)])
+        C = data.DiscreteVariable("C", values=[f"C{i + 1}" for i in range(1024)])
         domain = data.Domain([X], [C])
         d = data.Table.from_numpy(
             domain,

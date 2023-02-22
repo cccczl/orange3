@@ -45,10 +45,11 @@ class CurveFitModel(Model):
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         predicted = self.__function(X, *self.__parameters)
-        if not isinstance(predicted, np.ndarray):
-            # handle constant function; i.e. len(self.domain.attributes) == 0
-            return np.full(len(X), predicted, dtype=float)
-        return predicted.flatten()
+        return (
+            predicted.flatten()
+            if isinstance(predicted, np.ndarray)
+            else np.full(len(X), predicted, dtype=float)
+        )
 
     def __getstate__(self) -> Dict:
         if not self.__create_lambda_args:
@@ -195,10 +196,11 @@ class CurveFitLearner(Learner):
         attributes = []
         for attr in domain.attributes:
             if attr.name in self.__features_names:
-                if not attr.is_continuous:
-                    raise ValueError("Numeric feature expected.")
-                attributes.append(attr)
+                if attr.is_continuous:
+                    attributes.append(attr)
 
+                else:
+                    raise ValueError("Numeric feature expected.")
         new_domain = Domain(attributes, domain.class_vars, domain.metas)
         transformed = data.transform(new_domain)
         params = curve_fit(self.__function, transformed.X, transformed.Y,
@@ -389,15 +391,14 @@ class _ReplaceVars(ast.NodeTransformer):
     def visit_Name(self, node: ast.Name) -> Union[ast.Name, ast.Subscript]:
         if node.id not in self.__vars_mapper or node.id in self.__functions:
             return node
-        else:
-            n = self.__vars_mapper[node.id]
-            return ast.Subscript(
-                value=ast.Name(id=self.__name, ctx=ast.Load()),
-                slice=ast.ExtSlice(
-                    dims=[ast.Slice(lower=None, upper=None, step=None),
-                          ast.Index(value=ast.Num(n=n))]),
-                ctx=node.ctx
-            )
+        n = self.__vars_mapper[node.id]
+        return ast.Subscript(
+            value=ast.Name(id=self.__name, ctx=ast.Load()),
+            slice=ast.ExtSlice(
+                dims=[ast.Slice(lower=None, upper=None, step=None),
+                      ast.Index(value=ast.Num(n=n))]),
+            ctx=node.ctx
+        )
 
 
 if __name__ == "__main__":

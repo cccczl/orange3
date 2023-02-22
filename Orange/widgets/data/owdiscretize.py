@@ -102,9 +102,11 @@ def _fixed_time_width_discretization(
 def _mdl_discretization(
         data: Table,
         var: Union[ContinuousVariable, str, int]) -> Union[DiscreteVariable, str]:
-    if not data.domain.has_discrete_class:
-        return "no discrete class"
-    return disc.EntropyMDL()(data, var)
+    return (
+        disc.EntropyMDL()(data, var)
+        if data.domain.has_discrete_class
+        else "no discrete class"
+    )
 
 
 def _custom_discretization(
@@ -130,9 +132,11 @@ def _custom_discretization(
         cuts = []
     if any(x >= y for x, y in zip(cuts, cuts[1:])):
         cuts = []
-    if not cuts:
-        return "invalid cuts"
-    return disc.Discretizer.create_discretized_var(var, cuts)
+    return (
+        disc.Discretizer.create_discretized_var(var, cuts)
+        if cuts
+        else "invalid cuts"
+    )
 
 
 class Methods(IntEnum):
@@ -336,10 +340,9 @@ class DiscDomainModel(DomainModel):
                 return None
             if len(data.values) <= 3:
                 return f'<p style="white-space:pre">{tip}' \
-                       f'{",&nbsp;&nbsp;".join(values)}</p>'
+                           f'{",&nbsp;&nbsp;".join(values)}</p>'
             else:
-                return tip + "<br/>" \
-                    + "".join(f"- {value}<br/>" for value in values)
+                return (f"{tip}<br/>" + "".join(f"- {value}<br/>" for value in values))
         value = super().data(index, role)
         if role == Qt.DisplayRole:
             hint, points, values = index.data(Qt.UserRole)
@@ -370,7 +373,7 @@ class DefaultDiscModel(QAbstractListModel):
 
     def data(self, _, role=Qt.DisplayRole):
         if role == Qt.DisplayRole:
-            return "Default setting: " + format_desc(self.hint)
+            return f"Default setting: {format_desc(self.hint)}"
         elif role == Qt.DecorationRole:
             return DefaultDiscModel.icon
         elif role == Qt.ToolTipRole:
@@ -397,8 +400,8 @@ class IncreasingNumbersListValidator(QValidator):
                 return QValidator.Invalid, string, i
         prev = None
         if pos == len(string) >= 2 \
-                and string[-1] == " " and string[-2].isdigit():
-            string = string[:-1] + ", "
+                    and string[-1] == " " and string[-2].isdigit():
+            string = f"{string[:-1]}, "
             pos += 1
         for valuestr in re_custom_sep.split(string.strip()):
             try:
@@ -415,7 +418,7 @@ class IncreasingNumbersListValidator(QValidator):
             widget: QWidget, pos: QPoint, text: str, timeout=-1,
             textFormat=Qt.AutoText, wordWrap=None):
         """Show a tooltip; used for invalid custom thresholds"""
-        propname = __name__ + "::show_tip_qlabel"
+        propname = f"{__name__}::show_tip_qlabel"
         if timeout < 0:
             timeout = widget.toolTipDuration()
         if timeout < 0:
@@ -585,7 +588,7 @@ class OWDiscretize(widget.OWWidget):
                 colors = {
                     QValidator.Intermediate: (Qt.yellow, Qt.black),
                     QValidator.Invalid: (Qt.red, Qt.black),
-                }.get(state, None)
+                }.get(state)
                 if colors is None:
                     palette = QPalette()
                 else:
@@ -600,6 +603,7 @@ class OWDiscretize(widget.OWWidget):
                                        textFormat=Qt.RichText)
                 else:
                     validator.show_tip(edit, p, "")
+
             return edit, edit.textChanged
 
         children = []
@@ -801,8 +805,7 @@ class OWDiscretize(widget.OWWidget):
                           DiscDesc(var_hint, points, values),
                           Qt.UserRole)
 
-    def _discretize_var(self, var: ContinuousVariable, hint: VarHint) \
-        -> Tuple[str, Optional[Variable]]:
+    def _discretize_var(self, var: ContinuousVariable, hint: VarHint) -> Tuple[str, Optional[Variable]]:
         """
         Discretize using method and data in the hint.
 
@@ -814,9 +817,8 @@ class OWDiscretize(widget.OWWidget):
         if isinstance(var, TimeVariable):
             if hint.method_id in (Methods.FixedWidth, Methods.Custom):
                 return ": <keep, time var>", var
-        else:
-            if hint.method_id == Methods.FixedWidthTime:
-                return ": <keep, not time>", var
+        elif hint.method_id == Methods.FixedWidthTime:
+            return ": <keep, not time>", var
 
         function = Options[hint.method_id].function
         dvar = function(self.data, var, *hint.args)
@@ -850,8 +852,8 @@ class OWDiscretize(widget.OWWidget):
         texts = set()
         for key in varkeys:
             dvar = self.discretized_vars.get(key)
-            fmt = self.data.domain[key[0]].repr_val
             if isinstance(dvar, DiscreteVariable):
+                fmt = self.data.domain[key[0]].repr_val
                 text = ", ".join(map(fmt, dvar.compute_value.points))
                 texts.add(text)
                 self.var_hints[key] = VarHint(Methods.Custom, (text, ))
@@ -921,10 +923,7 @@ class OWDiscretize(widget.OWWidget):
                 self._uncheck_all_buttons()
                 return
 
-            if mset == [None]:
-                method_id, args = Methods.Default, ()
-            else:
-                method_id, args = mset.pop()
+            method_id, args = (Methods.Default, ()) if mset == [None] else mset.pop()
             self._check_button(method_id, True)
             self._set_values(method_id, args)
         finally:

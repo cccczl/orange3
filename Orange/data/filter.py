@@ -291,10 +291,7 @@ class FilterDiscrete(ValueFilter):
 
     def __call__(self, inst):
         value = inst[inst.domain.index(self.column)]
-        if self.values is None:
-            return not isnan(value)
-        else:
-            return value in self.values
+        return not isnan(value) if self.values is None else value in self.values
 
     def __eq__(self, other):
         return isinstance(other, FilterDiscrete) and \
@@ -381,19 +378,19 @@ class FilterContinuous(ValueFilter):
         elif isinstance(self.column, Variable):
             column = self.column.name
         else:
-            column = "feature({})".format(self.column)
+            column = f"feature({self.column})"
 
         names = {self.Equal: "=", self.NotEqual: "≠",
                  self.Less: "<", self.LessEqual: "≤",
                  self.Greater: ">", self.GreaterEqual: "≥"}
         if self.oper in names:
-            return "{} {} {}".format(column, names[self.oper], self.ref)
+            return f"{column} {names[self.oper]} {self.ref}"
         if self.oper == self.Between:
-            return "{} ≤ {} ≤ {}".format(self.min, column, self.max)
+            return f"{self.min} ≤ {column} ≤ {self.max}"
         if self.oper == self.Outside:
-            return "not {} ≤ {} ≤ {}".format(self.min, column, self.max)
+            return f"not {self.min} ≤ {column} ≤ {self.max}"
         if self.oper == self.IsDefined:
-            return "{} is defined".format(column)
+            return f"{column} is defined"
         return "invalid operator"
 
 

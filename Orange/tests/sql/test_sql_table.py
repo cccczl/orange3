@@ -243,7 +243,7 @@ class TestSqlTable(unittest.TestCase, dbt):
 
     def _mock_attribute(self, attr_name, formula=None):
         if formula is None:
-            formula = '"%s"' % attr_name
+            formula = f'"{attr_name}"'
 
         class Attr:
             name = attr_name
@@ -258,7 +258,10 @@ class TestSqlTable(unittest.TestCase, dbt):
     def test_universal_table(self):
         _, table_name = self.construct_universal_table()
 
-        SqlTable(self.conn, """
+        SqlTable(
+            self.conn,
+            (
+                """
             SELECT
                 v1.col2 as v1,
                 v2.col2 as v2,
@@ -272,7 +275,10 @@ class TestSqlTable(unittest.TestCase, dbt):
         INNER JOIN %(table_name)s v5 ON v5.col0 = v1.col0 AND v5.col1 = 5
              WHERE v1.col1 = 1
           ORDER BY v1.col0
-        """ % dict(table_name='"%s"' % table_name))
+        """
+                % dict(table_name=f'"{table_name}"')
+            ),
+        )
 
         self.drop_sql_table(table_name)
 
@@ -659,16 +665,11 @@ class TestSqlTable(unittest.TestCase, dbt):
             np.arange(25).reshape((-1, 1)))
         sql_table = SqlTable(conn, table_name)
 
-        try:
-            broken_query = "SELECT 1/%s FROM %s" % (
-                sql_table.domain.attributes[0].to_sql(), sql_table.table_name)
+        with contextlib.suppress(BackendError):
+            broken_query = f"SELECT 1/{sql_table.domain.attributes[0].to_sql()} FROM {sql_table.table_name}"
             with sql_table.backend.execute_sql_query(broken_query) as cur:
                 cur.fetchall()
-        except BackendError:
-            pass
-
-        working_query = "SELECT %s FROM %s" % (
-            sql_table.domain.attributes[0].to_sql(), sql_table.table_name)
+        working_query = f"SELECT {sql_table.domain.attributes[0].to_sql()} FROM {sql_table.table_name}"
         with sql_table.backend.execute_sql_query(working_query) as cur:
             cur.fetchall()
         self.drop_sql_table(table_name)
@@ -758,7 +759,7 @@ class TestSqlTable(unittest.TestCase, dbt):
 
         try:
             tables = self.backend.list_tables("orange_tests")
-            self.assertTrue(any([t.name == "efgh" for t in tables]))
+            self.assertTrue(any(t.name == "efgh" for t in tables))
             SqlTable(self.conn, tables[0], inspect_values=True)
         finally:
             with self.backend.execute_sql_query("DROP SCHEMA IF EXISTS orange_tests CASCADE"):
